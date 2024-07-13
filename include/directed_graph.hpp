@@ -1,7 +1,6 @@
 #pragma once
 
 #include <iterator>
-#include <list>
 #include <memory>
 #include <type_traits>
 #include <unordered_map>
@@ -18,16 +17,18 @@ template <typename Data = int>
 class DirGraphNode {
   using DirGraphPtr = DirectedGraph<Data> *;
 
-  class list_range final {
-    using list_iterator = std::list<DirGraphNode*>::iterator;
+  class range final {
+    using range_iterator = std::vector<DirGraphNode *>::iterator;
 
-    list_iterator list_begin, list_end;
+    range_iterator range_begin, range_end;
+
   public:
-    list_range(list_iterator begin, list_iterator end): list_begin(begin), list_end(end) {}
+    range(range_iterator begin, range_iterator end)
+        : range_begin(begin), range_end(end) {}
 
-    list_iterator begin() const { return list_begin; }
-    list_iterator end() const { return list_end; }
-    bool empty() const noexcept { return list_begin == list_end; }
+    range_iterator begin() const { return range_begin; }
+    range_iterator end() const { return range_end; }
+    bool empty() const noexcept { return range_begin == range_end; }
   };
 
 public:
@@ -44,21 +45,35 @@ public:
   
   std::string getName() const { return Name; }
 
-  void addSuccessor(NodePtr Ptr) { Success.push_back(Ptr); }
-  void removeSuccessor(NodePtr Ptr) { Success.remove(Ptr); }
-  void addPredecessor(NodePtr Ptr) { Predecs.push_back(Ptr); }
-  void removePredecessor(NodePtr Ptr) { Predecs.remove(Ptr); }
-  
+  void addSuccessor(NodePtr Ptr) {
+    Successors.push_back(Ptr);
+    Ptr->addPredecessor(this);
+  }
+
+  void removeSuccessor(NodePtr Ptr) {
+    if (auto RmIter = std::find(Successors, Ptr); RmIter != Successors.end()) {
+      (*RmIter)->removePredecessor(this);
+      Successors.erase(RmIter);
+    }
+  }
+  void addPredecessor(NodePtr Ptr) { Predecessors.push_back(Ptr); }
+  void removePredecessor(NodePtr Ptr) { std::erase(Predecessors, Ptr); }
+
   DirGraphPtr getParent() const noexcept { return Parent; }
 
-  list_range getSuccessors() const { return list_range {Success.begin(), Success.end()}; }
-  list_range getPredecessors() const { return list_range {Predecs.begin(), Predecs.end()}; }
+  range getSuccessors() const {
+    return range{Successors.begin(), Successors.end()};
+  }
+  range getPredecessors() const {
+    return range{Predecessors.begin(), Predecessors.end()};
+  }
+
 private:
   Data Dat;
   std::string Name;
   DirGraphPtr Parent;
-  std::list<NodePtr> Success;
-  std::list<NodePtr> Predecs;
+  std::vector<NodePtr> Successors;
+  std::vector<NodePtr> Predecessors;
 };
 
 template <typename T>
@@ -87,7 +102,6 @@ public:
         }
       }
       Vertices[Edge.first]->addSuccessor(Vertices[Edge.second]);
-      Vertices[Edge.second]->addPredecessor(Vertices[Edge.first]);
     };
 
     for (; BeginIt != EndIt; ++BeginIt) {

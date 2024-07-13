@@ -20,11 +20,11 @@ public:
   static constexpr size_type MaxEdgeCount = 5;
 
   // Generate Graph into given file:
-  // Example graph print (v is a node's name):
-  //    v_1 --> v_2
-  //    v_2 --> v_3
-  //    v_3 --> v_1
-  //    v_1 --> v_1
+  // Example graph print (BB is a node's name):
+  //    BB_1 --> BB_2
+  //    BB_2 --> BB_3
+  //    BB_3 --> BB_1
+  //    BB_1 --> BB_1
 
   static void generateGraph(std::ofstream &OutFile,
                             size_type NodesCount = DefNodesCount,
