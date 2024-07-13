@@ -1,11 +1,13 @@
 #pragma once
 
+#include <filesystem>
 #include <iterator>
 #include <memory>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <cstdlib>
 
 namespace graphs {
 
@@ -61,10 +63,18 @@ public:
 
   DirGraphPtr getParent() const noexcept { return Parent; }
 
-  range getSuccessors() const {
+  auto getSuccessors() const {
+    return range{Successors.cbegin(), Successors.cend()};
+  }
+  auto getPredecessors() const {
+    return range{Predecessors.cbegin(), Predecessors.cend()};
+  }
+
+  auto getSuccessors() {
     return range{Successors.begin(), Successors.end()};
   }
-  range getPredecessors() const {
+
+  auto getPredecessors() {
     return range{Predecessors.begin(), Predecessors.end()};
   }
 
@@ -75,6 +85,26 @@ private:
   std::vector<NodePtr> Successors;
   std::vector<NodePtr> Predecessors;
 };
+
+namespace fs = std::filesystem;
+
+template <typename T>
+void dumpIntoPng(const DirectedGraph<T> &DirGraph, fs::path PathToCreate,
+                 std::string FileName) {
+  static const char *DotSubstrEnd = ".dot";
+  fs::path FullPath = PathToCreate / (FileName + DotSubstrEnd);
+  std::ofstream DotFile(FullPath);
+  DirGraph.dumpInDotFormat(DotFile);
+
+  std::string DotCommand = "dot -Tpng ";
+  DotCommand.append(FullPath);
+  DotCommand.append(" -o ");
+  DotCommand.append(PathToCreate / FileName.append(".png"));
+#if 0
+  std::cout << DotCommand.c_str()  << std::endl;
+#endif
+  std::system(DotCommand.c_str());
+}
 
 template <typename T>
   requires std::is_default_constructible_v<T>
@@ -111,7 +141,25 @@ public:
 
   virtual ~DirectedGraph() {}
 
-  void dumpInDotFormat() const {}
+  void dumpInDotFormat(std::ofstream &DotDump) const {
+      static constexpr std::string_view DotHeader = "digraph List {\n"
+                                                   "\tdpi = 100;\n"
+                                                   "\tfontname = \"Comic Sans MS\";\n"
+                                                   "\tfontsize = 20;\n"
+                                                   "\trankdir  = TB;\n"
+
+  "graph [fillcolor = lightgreen, ranksep = 1.3, nodesep = 0.5, style = \"rounded\", color = green, penwidth = 2];\n"
+"edge [color = black, arrowhead = diamond, arrowsize = 1, penwidth = 1.2];\n";
+    DotDump << DotHeader;
+    for (const auto &Ptr : Nodes) {
+      auto Name = Ptr.get()->getName();
+      DotDump << Name << "[shape = Mrecord, style = filled, fillcolor = \"#B91FAF\"];" << std::endl;
+      for (auto Vertex : Ptr.get()->getSuccessors()) {
+        DotDump << Name << " -> " << Vertex->getName() << ";" << std::endl;
+      }
+    }
+    DotDump << "\n}\n";
+  }
 
   // access random graph node ptr
   NodeTypePtr getNodePtr() const noexcept { return Nodes.front().get(); }

@@ -30,4 +30,5 @@ int main(int args, char **argv) {
   std::ifstream GraphFile{argv[1]};
   auto Edges = getGraphEdges(GraphFile);
   graphs::DirectedGraph gr(Edges.cbegin(), Edges.cend());
+  graphs::dumpIntoPng(gr, argv[2], argv[3]);
 }
