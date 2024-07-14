@@ -1,11 +1,12 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <concepts>
 #include <iterator>
 #include <map>
+#include <queue>
 #include <set>
-#include <unordered_map>
 
 #include "directed_graph.hpp"
 
@@ -13,13 +14,13 @@ namespace graphs {
 
 template <typename T> class DomTreeGraph : public DirectedGraph<T> {
   using DirGraphType = DirectedGraph<T>;
-  using typename DirectedGraph<T>::value_type;
   using DirGraphType::Nodes;
+  using typename DirectedGraph<T>::value_type;
   using typename DirGraphType::EdgeType;
   using typename DirGraphType::NodeTypePtr;
 
   using size_type = std::size_t;
-  using DomTable = std::map<std::string, std::set<NodeTypePtr>>;
+  using DomTable = std::map<NodeTypePtr, std::set<NodeTypePtr>>;
 
 public:
   template <std::forward_iterator ForwIt>
@@ -28,12 +29,35 @@ public:
     }
   DomTreeGraph(ForwIt FBegin, ForwIt FEnd) : DirGraphType(FBegin, FEnd) {
     auto DomTbl = determineDominators();
-    // TODO 
+    std::map<NodeTypePtr, std::vector<NodeTypePtr>> ParentChildsMap;
+
+    for (auto &[NodePtr, DomSet] : DomTbl) {
+      DomSet.erase(NodePtr);
+      if (DomSet.empty()) {
+        continue;
+      } else if (DomSet.size() == 1) {
+        auto *Top = *DomSet.begin();
+        ParentChildsMap[Top].push_back(NodePtr);
+      } else {
+        auto *Closest = getClosest(DomSet, NodePtr);
+        ParentChildsMap[Closest].push_back(NodePtr);
+      }
+    }
+    // Clean previous graph
+    std::for_each(Nodes.begin(), Nodes.end(),
+                  [](auto &UniquePtr) { UniquePtr.get()->clearThreads(); });
+    // Create tree threads
+    for (auto &[ParentPtr, Childs] : ParentChildsMap) {
+      for (auto *ChildPtr : Childs) {
+        ParentPtr->addSuccessor(ChildPtr);
+      }
+    }
   }
 
   /*
    * Dom(n) = n \/ ( /\ Dom(m)), where m is a set of predecessors of the n
    */
+private:
   DomTable determineDominators() const {
     DomTable DomTbl;
     std::set<NodeTypePtr> Set;
@@ -42,21 +66,21 @@ public:
     std::transform(Nodes.begin(), Nodes.end(),
                    std::inserter(DomTbl, DomTbl.end()),
                    [&Set](auto &UniquePtr) {
-                     return std::make_pair(UniquePtr.get()->getName(), Set);
+                     return std::make_pair(UniquePtr.get(), Set);
                    });
 
     auto FrontPtr = Nodes.front().get();
-    DomTbl[FrontPtr->getName()].clear();
-    DomTbl[FrontPtr->getName()].insert(FrontPtr);
+    DomTbl[FrontPtr].clear();
+    DomTbl[FrontPtr].insert(FrontPtr);
 
     bool Changed = true;
     while (Changed) {
       Changed = false;
       for (auto &UniquePtr : Nodes) {
         auto NodePtr = UniquePtr.get();
-        auto TmpSet = DomTbl[NodePtr->getName()];
+        auto TmpSet = DomTbl[NodePtr];
         for (auto Pred : NodePtr->getPredecessors()) {
-          auto &CompSet = DomTbl[Pred->getName()];
+          auto &CompSet = DomTbl[Pred];
           std::set<NodeTypePtr> SaveComp;
           std::set_intersection(CompSet.begin(), CompSet.end(), TmpSet.begin(),
                                 TmpSet.end(),
@@ -64,18 +88,37 @@ public:
           TmpSet = std::move(SaveComp);
         }
         TmpSet.insert(NodePtr);
-        Changed |= DomTbl[NodePtr->getName()] != TmpSet;
-        if (auto Name = NodePtr->getName(); DomTbl[Name] != TmpSet) {
-          DomTbl[Name] = std::move(TmpSet);
+        Changed |= DomTbl[NodePtr] != TmpSet;
+        if (DomTbl[NodePtr] != TmpSet) {
+          DomTbl[NodePtr] = std::move(TmpSet);
         }
       }
     }
 
     return DomTbl;
   }
-
-private:
-  NodeTypePtr Root;
+  // need to make faster
+  NodeTypePtr getClosest(const std::set<NodeTypePtr> &DomSet,
+                         NodeTypePtr NodePtr) const {
+    std::queue<NodeTypePtr> BreathLineNodes;
+    BreathLineNodes.push(NodePtr);
+    NodeTypePtr RetNodePtr = nullptr;
+    while (!BreathLineNodes.empty()) {
+      auto *CurrNodePtr = BreathLineNodes.front();
+      BreathLineNodes.pop();
+      for (auto *Pred : CurrNodePtr->getPredecessors()) {
+        if (DomSet.find(Pred) != DomSet.end()) {
+          RetNodePtr = Pred;
+          std::queue<NodeTypePtr> SwapQueue;
+          BreathLineNodes.swap(SwapQueue);
+          break;
+        }
+        BreathLineNodes.push(Pred);
+      }
+    }
+    assert(RetNodePtr);
+    return RetNodePtr;
+  }
 };
 
 } // namespace graphs

@@ -77,7 +77,8 @@ public:
                             Graph[NodeCount].begin(), Graph[NodeCount].end(),
                             std::back_inserter(Diff));
         std::erase(Diff, NodeCount);
-        for (EdgeCount = 0; EdgeCount < AddEdgesCount && !Diff.empty(); ++EdgeCount) {
+        for (EdgeCount = 0; EdgeCount < AddEdgesCount && !Diff.empty();
+             ++EdgeCount) {
           auto CellId = getRandomUnsInt(Engine, 0, Diff.size() - 1);
           auto NodeTo = Diff[CellId];
           if (NodeCount != NodeTo)

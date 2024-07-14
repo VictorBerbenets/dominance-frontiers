@@ -1,5 +1,7 @@
 #pragma once
 
+#include <concepts>
+#include <cstdlib>
 #include <filesystem>
 #include <iterator>
 #include <memory>
@@ -7,7 +9,6 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <cstdlib>
 
 namespace graphs {
 
@@ -76,6 +77,11 @@ public:
 
   auto getPredecessors() {
     return range{Predecessors.begin(), Predecessors.end()};
+  }
+
+  void clearThreads() {
+    Successors.clear();
+    Predecessors.clear();
   }
 
 private:

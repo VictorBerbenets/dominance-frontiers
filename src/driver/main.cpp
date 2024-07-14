@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "directed_graph.hpp"
+#include "dominance_tree_graph.hpp"
 
 static std::vector<std::pair<std::string, std::string>>
 getGraphEdges(std::ifstream &Ifs) {
@@ -29,6 +30,6 @@ int main(int args, char **argv) {
 
   std::ifstream GraphFile{argv[1]};
   auto Edges = getGraphEdges(GraphFile);
-  graphs::DirectedGraph gr(Edges.cbegin(), Edges.cend());
-  graphs::dumpIntoPng(gr, argv[2], argv[3]);
+  graphs::DomTreeGraph<int> DmGraph(Edges.cbegin(), Edges.cend());
+  graphs::dumpIntoPng(DmGraph, argv[2], argv[3]);
 }
