@@ -89,8 +89,8 @@ private:
 namespace fs = std::filesystem;
 
 template <typename T>
-void dumpIntoPng(const DirectedGraph<T> &DirGraph, fs::path PathToCreate,
-                 std::string FileName) {
+static auto dumpIntoPngImpl(const DirectedGraph<T> &DirGraph,
+                            fs::path PathToCreate, std::string FileName) {
   static const char *DotSubstrEnd = ".dot";
   fs::path FullPath = PathToCreate / (FileName + DotSubstrEnd);
   std::ofstream DotFile(FullPath);
@@ -100,9 +100,14 @@ void dumpIntoPng(const DirectedGraph<T> &DirGraph, fs::path PathToCreate,
   DotCommand.append(FullPath);
   DotCommand.append(" -o ");
   DotCommand.append(PathToCreate / FileName.append(".png"));
-#if 0
-  std::cout << DotCommand.c_str()  << std::endl;
-#endif
+
+  return DotCommand;
+}
+
+template <typename T>
+void dumpIntoPng(const DirectedGraph<T> &DirGraph, fs::path PathToCreate,
+                 std::string FileName) {
+  auto DotCommand = dumpIntoPngImpl(DirGraph, PathToCreate, FileName);
   std::system(DotCommand.c_str());
 }
 
@@ -142,23 +147,29 @@ public:
   virtual ~DirectedGraph() {}
 
   void dumpInDotFormat(std::ofstream &DotDump) const {
-      static constexpr std::string_view DotHeader = "digraph List {\n"
-                                                   "\tdpi = 100;\n"
-                                                   "\tfontname = \"Comic Sans MS\";\n"
-                                                   "\tfontsize = 20;\n"
-                                                   "\trankdir  = TB;\n"
+    static constexpr std::string_view DotHeader =
+        "digraph List {\n"
+        "\tdpi = 100;\n"
+        "\tfontname = \"Comic Sans MS\";\n"
+        "\tfontsize = 20;\n"
+        "\trankdir  = TB;\n"
+        "graph [fillcolor = lightgreen, ranksep = 1.3, nodesep = 0.5,"
+        "style = \"rounded\", color = green, penwidth = 2];\n"
+        "edge [color = black, arrowhead = diamond, arrowsize = 1, penwidth = "
+        "1.2];\n";
 
-  "graph [fillcolor = lightgreen, ranksep = 1.3, nodesep = 0.5, style = \"rounded\", color = green, penwidth = 2];\n"
-"edge [color = black, arrowhead = diamond, arrowsize = 1, penwidth = 1.2];\n";
     DotDump << DotHeader;
     for (const auto &Ptr : Nodes) {
       auto Name = Ptr.get()->getName();
-      DotDump << Name << "[shape = Mrecord, style = filled, fillcolor = \"#B91FAF\"];" << std::endl;
+      DotDump << Name
+              << "[shape = Mrecord, style = filled,"
+                 "fillcolor = \"#B91FAF\"];"
+              << std::endl;
       for (auto Vertex : Ptr.get()->getSuccessors()) {
         DotDump << Name << " -> " << Vertex->getName() << ";" << std::endl;
       }
     }
-    DotDump << "\n}\n";
+    DotDump << "}\n";
   }
 
   // access random graph node ptr
