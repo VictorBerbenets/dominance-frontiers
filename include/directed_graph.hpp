@@ -114,7 +114,10 @@ void dumpIntoPng(const DirectedGraph<T> &DirGraph, fs::path PathToCreate,
 template <typename T>
   requires std::is_default_constructible_v<T>
 class DirectedGraph {
+public:
   using value_type = T;
+
+protected:
   using NodeType = DirGraphNode<value_type>;
   using NodeTypePtr = NodeType *;
   using StoredNodePtr = std::unique_ptr<NodeType>;
@@ -175,7 +178,7 @@ public:
   // access random graph node ptr
   NodeTypePtr getNodePtr() const noexcept { return Nodes.front().get(); }
 
-private:
+protected:
   std::vector<StoredNodePtr> Nodes;
 };
 

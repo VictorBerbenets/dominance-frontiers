@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <fstream>
 #include <random>
+#include <set>
 #include <string_view>
 #include <vector>
 
@@ -14,10 +15,10 @@ class DirGraphBuilder final {
 public:
   using size_type = std::size_t;
 
-  static constexpr size_type DefNodesCount = 5;
-  static constexpr size_type DefEdgeCount = 1;
-  static constexpr size_type MaxNodesCount = 15;
-  static constexpr size_type MaxEdgeCount = 5;
+  static constexpr size_type DefNodesNum = 5;
+  static constexpr size_type DefEdgeNum = 1;
+  static constexpr size_type MaxNodesNum = 15;
+  static constexpr size_type MaxEdgeNum = 10;
 
   // Generate Graph into given file:
   // Example graph print (BB is a node's name):
@@ -27,32 +28,58 @@ public:
   //    BB_1 --> BB_1
 
   static void generateGraph(std::ofstream &OutFile,
-                            size_type NodesCount = DefNodesCount,
-                            size_type EdgeCount = DefEdgeCount,
+                            size_type NodeNum = DefNodesNum,
+                            size_type EdgeNum = DefEdgeNum,
                             std::string_view NodeName = "BB") {
-    if (EdgeCount > NodesCount)
-      EdgeCount = 1;
+    if (EdgeNum > NodeNum)
+      EdgeNum = 1;
 
-    if (NodesCount == 0 || NodesCount > MaxNodesCount)
-      NodesCount = DefNodesCount;
+    if (NodeNum == 0 || NodeNum > MaxNodesNum)
+      NodeNum = DefNodesNum;
 
-    if (EdgeCount > MaxEdgeCount)
-      EdgeCount = DefEdgeCount + 1;
+    if (EdgeNum > MaxEdgeNum)
+      EdgeNum = DefEdgeNum;
 
     // create random generator
     std::random_device Device;
     GeneratorType Engine{Device()};
 
-    for (size_type NodeNum = 1; NodeNum <= NodesCount; ++NodeNum) {
-      std::vector<size_type> PairNodes(NodesCount);
-      std::iota(PairNodes.begin(), PairNodes.end(), 1);
-      for (size_type EdgeNum = 0,
-                     EdgesCount = getRandomUnsInt(Engine, 1, EdgeCount);
-           EdgeNum < EdgesCount; ++EdgeNum) {
-        auto CellNode = getRandomUnsInt(Engine, 0, PairNodes.size() - 1);
-        printEdge(OutFile, std::string(NodeName) + "_", NodeNum,
-                  PairNodes[CellNode]);
-        PairNodes.erase(PairNodes.begin() + CellNode);
+    std::vector<std::vector<size_type>> Graph(NodeNum);
+    std::set<size_type> FreeNodes;
+    std::generate_n(std::inserter(FreeNodes, FreeNodes.end()), NodeNum - 1,
+                    [&FreeNodes] { return FreeNodes.size() + 2; });
+    // Making tree graph
+    for (size_type NodeCount = 1; NodeCount <= Graph.size(); ++NodeCount) {
+      if (FreeNodes.empty())
+        break;
+      auto SuccessorsNum = getRandomUnsInt(Engine, 1, EdgeNum);
+      for (size_type SuccessorsCount = 0;
+           SuccessorsCount < SuccessorsNum && !FreeNodes.empty();
+           ++SuccessorsCount) {
+        auto Successor = *FreeNodes.begin();
+        printEdge(OutFile, std::string(NodeName) + "_", NodeCount, Successor);
+        // saving Successor
+        Graph[NodeCount].push_back(Successor);
+        FreeNodes.erase(FreeNodes.begin());
+      }
+    }
+    // Adding random edges (having high possibility to make loops)
+    std::vector<size_type> AllNodes(NodeNum);
+    std::iota(AllNodes.begin(), AllNodes.end(), 1);
+    for (size_type NodeCount = 1; NodeCount < Graph.size(); ++NodeCount) {
+      if (size_type EdgeCount = Graph[NodeCount].size(); EdgeCount < EdgeNum) {
+        auto AddEdgesCount = getRandomUnsInt(Engine, 0, EdgeNum - EdgeCount);
+        std::vector<size_type> Diff;
+        std::set_difference(AllNodes.begin(), AllNodes.end(),
+                            Graph[NodeCount].begin(), Graph[NodeCount].end(),
+                            std::back_inserter(Diff));
+        std::erase(Diff, NodeCount);
+        for (EdgeCount = 0; EdgeCount < AddEdgesCount; ++EdgeCount) {
+          auto CellId = getRandomUnsInt(Engine, 0, Diff.size() - 1);
+          auto NodeTo = Diff[CellId];
+          printEdge(OutFile, std::string(NodeName) + "_", NodeCount, NodeTo);
+          Diff.erase(Diff.begin() + CellId);
+        }
       }
     }
   }
