@@ -1,0 +1,16 @@
+BB_1 --> BB_2
+BB_2 --> BB_3
+BB_2 --> BB_4
+BB_2 --> BB_5
+BB_3 --> BB_6
+BB_3 --> BB_7
+BB_3 --> BB_8
+BB_4 --> BB_9
+BB_4 --> BB_10
+BB_1 --> BB_7
+BB_5 --> BB_2
+BB_5 --> BB_4
+BB_5 --> BB_6
+BB_7 --> BB_10
+BB_8 --> BB_6
+BB_8 --> BB_1
