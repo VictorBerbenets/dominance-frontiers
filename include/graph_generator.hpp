@@ -34,7 +34,7 @@ public:
     if (EdgeNum > NodeNum)
       EdgeNum = 1;
 
-    if (NodeNum == 0 || NodeNum > MaxNodesNum)
+    if (NodeNum < 2 || NodeNum > MaxNodesNum)
       NodeNum = DefNodesNum;
 
     if (EdgeNum > MaxEdgeNum)
@@ -47,9 +47,12 @@ public:
     std::vector<std::vector<size_type>> Graph(NodeNum);
     std::set<size_type> FreeNodes;
     std::generate_n(std::inserter(FreeNodes, FreeNodes.end()), NodeNum - 1,
-                    [&FreeNodes] { return FreeNodes.size() + 2; });
+                    [&FreeNodes] { return FreeNodes.size() + 1; });
     // Making tree graph
-    for (size_type NodeCount = 1; NodeCount <= Graph.size(); ++NodeCount) {
+    printEdge(OutFile, std::string(NodeName) + "_", 0, 1);
+    Graph[0].push_back(1);
+    FreeNodes.erase(FreeNodes.begin());
+    for (size_type NodeCount = 1; NodeCount < Graph.size(); ++NodeCount) {
       if (FreeNodes.empty())
         break;
       auto SuccessorsNum = getRandomUnsInt(Engine, 1, EdgeNum);
@@ -64,7 +67,7 @@ public:
       }
     }
     // Adding random edges (having high possibility to make loops)
-    std::vector<size_type> AllNodes(NodeNum);
+    std::vector<size_type> AllNodes(NodeNum - 1);
     std::iota(AllNodes.begin(), AllNodes.end(), 1);
     for (size_type NodeCount = 1; NodeCount < Graph.size(); ++NodeCount) {
       if (size_type EdgeCount = Graph[NodeCount].size(); EdgeCount < EdgeNum) {
@@ -74,10 +77,11 @@ public:
                             Graph[NodeCount].begin(), Graph[NodeCount].end(),
                             std::back_inserter(Diff));
         std::erase(Diff, NodeCount);
-        for (EdgeCount = 0; EdgeCount < AddEdgesCount; ++EdgeCount) {
+        for (EdgeCount = 0; EdgeCount < AddEdgesCount && !Diff.empty(); ++EdgeCount) {
           auto CellId = getRandomUnsInt(Engine, 0, Diff.size() - 1);
           auto NodeTo = Diff[CellId];
-          printEdge(OutFile, std::string(NodeName) + "_", NodeCount, NodeTo);
+          if (NodeCount != NodeTo)
+            printEdge(OutFile, std::string(NodeName) + "_", NodeCount, NodeTo);
           Diff.erase(Diff.begin() + CellId);
         }
       }

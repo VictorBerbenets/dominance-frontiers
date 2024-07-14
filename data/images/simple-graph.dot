@@ -5,6 +5,8 @@ digraph List {
 	rankdir  = TB;
 graph [fillcolor = lightgreen, ranksep = 1.3, nodesep = 0.5,style = "rounded", color = green, penwidth = 2];
 edge [color = black, arrowhead = diamond, arrowsize = 1, penwidth = 1.2];
+BB_0[shape = Mrecord, style = filled,fillcolor = "#B91FAF"];
+BB_0 -> BB_1;
 BB_1[shape = Mrecord, style = filled,fillcolor = "#B91FAF"];
 BB_1 -> BB_2;
 BB_2[shape = Mrecord, style = filled,fillcolor = "#B91FAF"];
@@ -12,6 +14,4 @@ BB_2 -> BB_3;
 BB_3[shape = Mrecord, style = filled,fillcolor = "#B91FAF"];
 BB_3 -> BB_4;
 BB_4[shape = Mrecord, style = filled,fillcolor = "#B91FAF"];
-BB_4 -> BB_5;
-BB_5[shape = Mrecord, style = filled,fillcolor = "#B91FAF"];
 }
