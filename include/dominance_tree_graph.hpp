@@ -56,10 +56,10 @@ public:
     }
   }
 
+private:
   /*
    * Dom(n) = n \/ ( /\ Dom(m)), where m is a set of predecessors of the n
    */
-private:
   DomTable determineDominators() const {
     DomTable DomTbl;
     std::set<NodeTypePtr> Set;
@@ -109,7 +109,7 @@ private:
       auto *CurrNodePtr = BreathLineNodes.front();
       BreathLineNodes.pop();
       for (auto *Pred : CurrNodePtr->getPredecessors()) {
-        if (DomSet.find(Pred) != DomSet.end())
+        if (DomSet.contains(Pred))
           return Pred;
         BreathLineNodes.push(Pred);
       }
