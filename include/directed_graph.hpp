@@ -163,19 +163,28 @@ public:
 
   virtual ~DirectedGraph() {}
 
-  virtual void dumpInDotFormat(std::ofstream &DotDump, std::string_view NodeShape = DefNodeShape,
-          std::string_view NodeColor = DefNodeColor, std::string_view EdgeShape = DefEdgeShape,
-                               std::string_view EdgeColor = DefEdgeColor) const {
-    std::string DotHeader =
-        "digraph G {\n"
-        "\tdpi = 100;\n"
-        "\tfontname = \"Comic Sans MS\";\n"
-        "\tfontsize = 20;\n"
-        "\trankdir  = TB;\n"
-        "node [shape = " + std::string(NodeShape) + ", style = filled,"
-        "fillcolor = \"" + std::string(NodeColor) + "\"];\n"
-        "edge [color = " + std::string(EdgeColor) + ", arrowhead = " + std::string(EdgeShape) + ", arrowsize = 1, penwidth = "
-        "1.2];\n";
+  virtual void
+  dumpInDotFormat(std::ofstream &DotDump,
+                  std::string_view NodeShape = DefNodeShape,
+                  std::string_view NodeColor = DefNodeColor,
+                  std::string_view EdgeShape = DefEdgeShape,
+                  std::string_view EdgeColor = DefEdgeColor) const {
+    std::string DotHeader = "digraph G {\n"
+                            "\tdpi = 100;\n"
+                            "\tfontname = \"Comic Sans MS\";\n"
+                            "\tfontsize = 20;\n"
+                            "\trankdir  = TB;\n"
+                            "node [shape = " +
+                            std::string(NodeShape) +
+                            ", style = filled,"
+                            "fillcolor = \"" +
+                            std::string(NodeColor) +
+                            "\"];\n"
+                            "edge [color = " +
+                            std::string(EdgeColor) +
+                            ", arrowhead = " + std::string(EdgeShape) +
+                            ", arrowsize = 1, penwidth = "
+                            "1.2];\n";
 
     DotDump << DotHeader;
     for (const auto &Ptr : Nodes) {
