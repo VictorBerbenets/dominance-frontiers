@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <ranges>
 
 namespace graphs {
 
@@ -20,21 +21,8 @@ template <typename Data = int>
 class DirGraphNode {
   using DirGraphPtr = DirectedGraph<Data> *;
 
-  class range final {
-    using range_iterator = std::vector<DirGraphNode *>::iterator;
-
-    range_iterator range_begin, range_end;
-
-  public:
-    range(range_iterator begin, range_iterator end)
-        : range_begin(begin), range_end(end) {}
-
-    range_iterator begin() const { return range_begin; }
-    range_iterator end() const { return range_end; }
-    bool empty() const noexcept { return range_begin == range_end; }
-  };
-
 public:
+  using size_type = std::size_t;
   using NodePtr = DirGraphNode*;
 
   DirGraphNode(Data Dat, const std::string &Name = "",
@@ -54,7 +42,7 @@ public:
   }
 
   void removeSuccessor(NodePtr Ptr) {
-    if (auto RmIter = std::find(Successors, Ptr); RmIter != Successors.end()) {
+    if (auto RmIter = std::ranges::find(Successors, Ptr); RmIter != Successors.end()) {
       (*RmIter)->removePredecessor(this);
       Successors.erase(RmIter);
     }
@@ -65,19 +53,36 @@ public:
   DirGraphPtr getParent() const noexcept { return Parent; }
 
   auto getSuccessors() const {
-    return range{Successors.cbegin(), Successors.cend()};
+    return std::ranges::subrange {Successors};
   }
   auto getPredecessors() const {
-    return range{Predecessors.cbegin(), Predecessors.cend()};
+    return std::ranges::subrange {Predecessors};
   }
 
   auto getSuccessors() {
-    return range{Successors.begin(), Successors.end()};
+    return std::ranges::subrange {Successors};
   }
 
   auto getPredecessors() {
-    return range{Predecessors.begin(), Predecessors.end()};
+    return std::ranges::subrange {Predecessors};
   }
+
+  NodePtr getPredecessor() {
+    if (Predecessors.size() == 1) {
+      return Predecessors.front();
+    }
+    return nullptr;
+  }
+  
+  NodePtr getSuccessor() {
+    if (Successors.size() == 1) {
+      return &Successors.front();
+    }
+    return nullptr;
+  }
+
+  size_type getPredecessorsCount() const noexcept { return Predecessors.size(); }
+  size_type getSuccessorsCount() const noexcept { return Successors.size(); }
 
   void clearThreads() {
     Successors.clear();
@@ -94,10 +99,13 @@ private:
 
 namespace fs = std::filesystem;
 
+namespace detail {
+
 template <typename T>
-static auto dumpIntoPngImpl(const DirectedGraph<T> &DirGraph,
+auto dumpIntoPngImpl(const DirectedGraph<T> &DirGraph,
                             fs::path PathToCreate, std::string FileName) {
   static const char *DotSubstrEnd = ".dot";
+
   fs::path FullPath = PathToCreate / (FileName + DotSubstrEnd);
   std::ofstream DotFile(FullPath);
   DirGraph.dumpInDotFormat(DotFile);
@@ -105,15 +113,16 @@ static auto dumpIntoPngImpl(const DirectedGraph<T> &DirGraph,
   std::string DotCommand = "dot -Tpng ";
   DotCommand.append(FullPath);
   DotCommand.append(" -o ");
-  DotCommand.append(PathToCreate / FileName.append(".png"));
-
+  DotCommand.append(PathToCreate.append(FileName).replace_extension(".png"));
   return DotCommand;
 }
+
+} // namespace detail
 
 template <typename T>
 void dumpIntoPng(const DirectedGraph<T> &DirGraph, fs::path PathToCreate,
                  std::string FileName) {
-  auto DotCommand = dumpIntoPngImpl(DirGraph, PathToCreate, FileName);
+  auto DotCommand = detail::dumpIntoPngImpl(DirGraph, PathToCreate, FileName);
   std::system(DotCommand.c_str());
 }
 
@@ -137,9 +146,9 @@ public:
   DirectedGraph(InputIt BeginIt, InputIt EndIt) {
     std::unordered_map<std::string, NodeType *> Vertices;
 
-    auto HandleEdge = [&Vertices, this](const EdgeType &Edge) {
+    auto HandleEdge = [&](const EdgeType &Edge) {
       for (auto V : {Edge.first, Edge.second}) {
-        if (Vertices.find(V) == Vertices.end()) {
+        if (!Vertices.contains(V)) {
           Nodes.push_back(std::make_unique<NodeType>(value_type(), V, this));
           auto RawPtr = Nodes.back().get();
           Vertices.emplace(V, RawPtr);

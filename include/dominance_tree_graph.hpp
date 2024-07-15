@@ -4,6 +4,7 @@
 #include <cassert>
 #include <concepts>
 #include <iterator>
+#include <ranges>
 #include <map>
 #include <queue>
 #include <set>
@@ -40,6 +41,7 @@ public:
         ParentChildsMap[Top].push_back(NodePtr);
       } else {
         auto *Closest = getClosest(DomSet, NodePtr);
+        assert(Closest);
         ParentChildsMap[Closest].push_back(NodePtr);
       }
     }
@@ -107,17 +109,13 @@ private:
       auto *CurrNodePtr = BreathLineNodes.front();
       BreathLineNodes.pop();
       for (auto *Pred : CurrNodePtr->getPredecessors()) {
-        if (DomSet.find(Pred) != DomSet.end()) {
-          RetNodePtr = Pred;
-          std::queue<NodeTypePtr> SwapQueue;
-          BreathLineNodes.swap(SwapQueue);
-          break;
-        }
+        if (DomSet.find(Pred) != DomSet.end())
+          return Pred;
         BreathLineNodes.push(Pred);
       }
     }
-    assert(RetNodePtr);
-    return RetNodePtr;
+
+    return nullptr;
   }
 };
 
