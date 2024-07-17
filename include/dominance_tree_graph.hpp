@@ -29,10 +29,10 @@ public:
       { *It } -> std::convertible_to<EdgeType>;
     }
   DomTreeGraph(ForwIt FBegin, ForwIt FEnd) : DirGraphType(FBegin, FEnd) {
-    auto DomTbl = determineDominators();
     std::map<NodeTypePtr, std::vector<NodeTypePtr>> ParentChildsMap;
 
-    for (auto &[NodePtr, DomSet] : DomTbl) {
+    for (auto DomTbl = determineDominators();
+         auto &[NodePtr, DomSet] : DomTbl) {
       DomSet.erase(NodePtr);
       if (DomSet.empty()) {
         continue;
@@ -46,11 +46,11 @@ public:
       }
     }
     // Clean previous graph
-    std::for_each(Nodes.begin(), Nodes.end(),
-                  [](auto &UniquePtr) { UniquePtr.get()->clearThreads(); });
+    std::ranges::for_each(
+        Nodes, [](auto &UniquePtr) { UniquePtr.get()->clearThreads(); });
     // Create tree threads
-    for (auto &[ParentPtr, Childs] : ParentChildsMap) {
-      for (auto *ChildPtr : Childs) {
+    for (auto &[ParentPtr, Children] : ParentChildsMap) {
+      for (auto *ChildPtr : Children) {
         ParentPtr->addSuccessor(ChildPtr);
       }
     }
@@ -61,6 +61,9 @@ private:
    * Dom(n) = n \/ ( /\ Dom(m)), where m is a set of predecessors of the n
    */
   DomTable determineDominators() const {
+    if (Nodes.empty())
+      return {};
+
     DomTable DomTbl;
     std::set<NodeTypePtr> Set;
     std::transform(Nodes.begin(), Nodes.end(), std::inserter(Set, Set.end()),
@@ -102,15 +105,15 @@ private:
   // need to make faster
   NodeTypePtr getClosest(const std::set<NodeTypePtr> &DomSet,
                          NodeTypePtr NodePtr) const {
-    std::queue<NodeTypePtr> BreathLineNodes;
-    BreathLineNodes.push(NodePtr);
-    while (!BreathLineNodes.empty()) {
-      auto *CurrNodePtr = BreathLineNodes.front();
-      BreathLineNodes.pop();
+    std::queue<NodeTypePtr> BreadthLineNodes;
+    BreadthLineNodes.push(NodePtr);
+    while (!BreadthLineNodes.empty()) {
+      auto *CurrNodePtr = BreadthLineNodes.front();
+      BreadthLineNodes.pop();
       for (auto *Pred : CurrNodePtr->getPredecessors()) {
         if (DomSet.contains(Pred))
           return Pred;
-        BreathLineNodes.push(Pred);
+        BreadthLineNodes.push(Pred);
       }
     }
 

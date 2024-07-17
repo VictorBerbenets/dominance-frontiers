@@ -11,6 +11,8 @@
 #include <vector>
 #include <ranges>
 
+#include "utils.hpp"
+
 namespace graphs {
 
 template <typename T>
@@ -114,6 +116,7 @@ class DirectedGraph {
 public:
   using value_type = T;
 
+  static constexpr std::string_view DefGraphName = "GFG";
   static constexpr std::string_view DefNodeColor = "lightblue";
   static constexpr std::string_view DefNodeShape = "square";
   static constexpr std::string_view DefEdgeColor = "red";
@@ -133,19 +136,14 @@ public:
   DirectedGraph(InputIt BeginIt, InputIt EndIt) {
     std::unordered_map<std::string, NodeType *> Vertices;
 
-    auto HandleEdge = [&](const EdgeType &Edge) {
-      for (auto V : {Edge.first, Edge.second}) {
+    for (; BeginIt != EndIt; ++BeginIt) {
+      for (auto &V : {BeginIt->first, BeginIt->second}) {
         if (!Vertices.contains(V)) {
           Nodes.push_back(std::make_unique<NodeType>(value_type(), V, this));
-          auto RawPtr = Nodes.back().get();
-          Vertices.emplace(V, RawPtr);
+          Vertices.emplace(V, Nodes.back().get());
         }
       }
-      Vertices[Edge.first]->addSuccessor(Vertices[Edge.second]);
-    };
-
-    for (; BeginIt != EndIt; ++BeginIt) {
-      HandleEdge(*BeginIt);
+      Vertices[BeginIt->first]->addSuccessor(Vertices[BeginIt->second]);
     }
   }
 
@@ -153,28 +151,21 @@ public:
 
   virtual void
   dumpInDotFormat(std::ofstream &DotDump,
+                  std::string_view GraphName = DefGraphName,
                   std::string_view NodeShape = DefNodeShape,
                   std::string_view NodeColor = DefNodeColor,
                   std::string_view EdgeShape = DefEdgeShape,
                   std::string_view EdgeColor = DefEdgeColor) const {
-    std::string DotHeader = "digraph G {\n"
-                            "\tdpi = 100;\n"
-                            "\tfontname = \"Comic Sans MS\";\n"
-                            "\tfontsize = 20;\n"
-                            "\trankdir  = TB;\n"
-                            "node [shape = " +
-                            std::string(NodeShape) +
-                            ", style = filled,"
-                            "fillcolor = \"" +
-                            std::string(NodeColor) +
-                            "\"];\n"
-                            "edge [color = " +
-                            std::string(EdgeColor) +
-                            ", arrowhead = " + std::string(EdgeShape) +
-                            ", arrowsize = 1, penwidth = "
-                            "1.2];\n";
-
-    DotDump << DotHeader;
+    DotDump << utils::formatPrint(
+        "digraph {} {}\n"
+        "\tdpi = 100;\n"
+        "\tfontname = \"Comic Sans MS\";\n"
+        "\tfontsize = 20;\n"
+        "\trankdir  = TB;\n"
+        "node [shape = {}, style = filled, fillcolor = \"{}\"];\n"
+        "edge [color = {}, arrowhead = {}, arrowsize = 1,"
+        "penwidth = 1.2];\n",
+        GraphName, '{', NodeShape, NodeColor, EdgeColor, EdgeShape);
     for (const auto &Ptr : Nodes) {
       auto Name = Ptr.get()->getName();
       for (auto Vertex : Ptr.get()->getSuccessors()) {
@@ -182,7 +173,6 @@ public:
       }
     }
     DotDump << "}\n";
-    DotDump.close();
   }
 
   // access random graph node ptr

@@ -26,7 +26,7 @@ public:
   //    BB_3 --> BB_1
   //    BB_1 --> BB_1
 
-  // Note: if EdgeNum => NodeNum - got UB possibility
+  // Note: if EdgeNum >= NodeNum - got UB possibility
   static void generateGraph(std::ofstream &OutFile,
                             size_type NodeNum = DefNodeNum,
                             size_type EdgeNum = DefEdgeNum,
