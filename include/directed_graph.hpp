@@ -115,7 +115,7 @@ public:
   using value_type = T;
 
   static constexpr std::string_view DefNodeColor = "lightblue";
-  static constexpr std::string_view DefNodeShape = "circle";
+  static constexpr std::string_view DefNodeShape = "square";
   static constexpr std::string_view DefEdgeColor = "red";
   static constexpr std::string_view DefEdgeShape = "vee";
 

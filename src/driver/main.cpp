@@ -133,14 +133,19 @@ void printHelp(std::ostream &Os = std::cout) {
   Os << "|\t" << "--edge-color=<> - set edge color (red is default)."
      << std::endl;
   Os << "|\t"
-     << "--node-shape=<> - set node shape. circle is default. Check graphviz.org "
+     << "--node-shape=<> - set node shape (square is default). Check "
+        "graphviz.org "
         "for more."
      << std::endl;
   Os << "|\t"
-     << "--edge-shape=<> - set edge shape. vee is default. Check graphviz.org for "
+     << "--edge-shape=<> - set edge shape (vee is default). Check graphviz.org "
+        "for "
         "more."
      << std::endl;
-  Os << "|\t" << "--file-name=<>  - set name for generated file(s). graph setted as default." << std::endl;
+  Os << "|\t"
+     << "--file-name=<>  - set name for generated file(s) (name graph setted "
+        "as default)."
+     << std::endl;
   Os << "|\t" << "--node-name=<>  - set name for nodes. BB setted as default." << std::endl;
   Os << "|-"
      << "Note: you can use RGB format for color option (e.g. "
@@ -185,7 +190,7 @@ fs::path generateDotFormatGraph(CommandContext &CC) {
   std::ifstream TxtFile{FilePath};
   auto Edges = getGraphEdges(TxtFile);
   GraphType G(Edges.cbegin(), Edges.cend());
-  if (CC.Com != coms::Cfg && CC.Com != coms::DomTree)
+  if (CC.Com != coms::Cfg)
     fs::remove(FilePath);
   std::ofstream DotFile{FilePath.replace_extension(".dot")};
   G.dumpInDotFormat(DotFile, CC.OM[opts::NodeShape], CC.OM[opts::NodeColor],
@@ -223,7 +228,7 @@ void printInvalidOptions(Iter Begin, Iter end, std::ostream &Os = std::cout) {
 int main(int args, char **argv) {
   if (args < 2) {
     throw std::runtime_error{"input error: expected command. Try run with"
-                             "-h\n"};
+                             " -h\n"};
   }
 
   static constexpr std::string_view DefFileName = "graph";
@@ -281,7 +286,7 @@ int main(int args, char **argv) {
       generatePngFormatGraph<DTT>(CC);
       break;
     default:
-      throw std::runtime_error{
-          std::string(CC.Com).append(" is not available command.Try -help")};
+      throw std::runtime_error{std::string(CC.Com).append(
+          " is not available command. Try -help, -h.")};
   }
 }
