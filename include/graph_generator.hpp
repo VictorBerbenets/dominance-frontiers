@@ -15,31 +15,24 @@ class DirGraphBuilder final {
 public:
   using size_type = std::size_t;
 
-  static constexpr size_type DefNodesNum = 5;
+  static constexpr std::string_view DefNodeName = "BB";
+  static constexpr size_type DefNodeNum = 5;
   static constexpr size_type DefEdgeNum = 1;
-  static constexpr size_type MaxNodesNum = 15;
-  static constexpr size_type MaxEdgeNum = 10;
 
-  // Generate Graph into given file:
+  // Generate txt graph into given file:
   // Example graph print (BB is a node's name):
   //    BB_1 --> BB_2
   //    BB_2 --> BB_3
   //    BB_3 --> BB_1
   //    BB_1 --> BB_1
 
+  // Note: if EdgeNum => NodeNum - got UB possibility
   static void generateGraph(std::ofstream &OutFile,
-                            size_type NodeNum = DefNodesNum,
+                            size_type NodeNum = DefNodeNum,
                             size_type EdgeNum = DefEdgeNum,
-                            std::string_view NodeName = "BB") {
-    if (EdgeNum > NodeNum)
-      EdgeNum = 1;
-
-    if (NodeNum < 2 || NodeNum > MaxNodesNum)
-      NodeNum = DefNodesNum;
-
-    if (EdgeNum > MaxEdgeNum)
-      EdgeNum = DefEdgeNum;
-
+                            std::string_view NodeName = DefNodeName) {
+    if (EdgeNum == 0)
+      return;
     // create random generator
     std::random_device Device;
     GeneratorType Engine{Device()};

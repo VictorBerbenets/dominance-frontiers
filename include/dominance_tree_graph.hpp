@@ -104,7 +104,6 @@ private:
                          NodeTypePtr NodePtr) const {
     std::queue<NodeTypePtr> BreathLineNodes;
     BreathLineNodes.push(NodePtr);
-    NodeTypePtr RetNodePtr = nullptr;
     while (!BreathLineNodes.empty()) {
       auto *CurrNodePtr = BreathLineNodes.front();
       BreathLineNodes.pop();

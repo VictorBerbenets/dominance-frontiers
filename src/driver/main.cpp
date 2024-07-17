@@ -16,10 +16,10 @@
 
 namespace {
 
-namespace fs = std::filesystem; 
+namespace fs = std::filesystem;
 
-using namespace std::literals; 
-using namespace string_literals; 
+using namespace std::literals::string_literals;
+
 using value_type = int;
 using DGT = graphs::DirectedGraph<value_type>;
 using DTT = graphs::DomTreeGraph<value_type>;
@@ -49,28 +49,28 @@ struct CommandContext final {
 };
 
 namespace opts {
-  static constexpr std::string_view Path = "--path";
-  static constexpr std::string_view NumNodes = "--num-nodes";
-  static constexpr std::string_view NumEdges = "--num-edges";
-  static constexpr std::string_view NodeColor = "--node-color";
-  static constexpr std::string_view EdgeColor = "--edge-color";
-  static constexpr std::string_view NodeShape = "--node-shape";
-  static constexpr std::string_view EdgeShape = "--edge-shape";
-  static constexpr std::string_view FileName = "--file-name";
-  static constexpr std::string_view NodeName = "--node-name";
+constexpr std::string_view Path = "--path";
+constexpr std::string_view NumNodes = "--num-nodes";
+constexpr std::string_view NumEdges = "--num-edges";
+constexpr std::string_view NodeColor = "--node-color";
+constexpr std::string_view EdgeColor = "--edge-color";
+constexpr std::string_view NodeShape = "--node-shape";
+constexpr std::string_view EdgeShape = "--edge-shape";
+constexpr std::string_view FileName = "--file-name";
+constexpr std::string_view NodeName = "--node-name";
 }; // namespace opts
 
 namespace coms {
-  static constexpr std::string_view H = "-h";
-  static constexpr std::string_view Help = "-help";
-  static constexpr std::string_view Cfg = "-g=cfg";
-  static constexpr std::string_view CfgTxt = "-g=cfg-txt";
-  static constexpr std::string_view CfgDot = "-g=cfg-dot";
-  static constexpr std::string_view CfgPng = "-g=cfg-png";
-  static constexpr std::string_view DomTree = "-g=dom-tree";
-  static constexpr std::string_view DomTreeDot = "-g=dom-dot";
-  static constexpr std::string_view DomTreePng = "-g=dom-png";
-}; // namespace opts
+constexpr std::string_view H = "-h";
+constexpr std::string_view Help = "-help";
+constexpr std::string_view Cfg = "-g=cfg";
+constexpr std::string_view CfgTxt = "-g=cfg-txt";
+constexpr std::string_view CfgDot = "-g=cfg-dot";
+constexpr std::string_view CfgPng = "-g=cfg-png";
+constexpr std::string_view DomTree = "-g=dom-tree";
+constexpr std::string_view DomTreeDot = "-g=dom-tree-dot";
+constexpr std::string_view DomTreePng = "-g=dom-tree-png";
+}; // namespace coms
 
 auto getOptionSet(int args, char **argv) {
   std::vector<std::string> OptionsSet(argv, argv + args);
@@ -163,17 +163,10 @@ fs::path getPath(std::string_view PathStr) {
     return Path;
 }
 
-template <typename T>
-void generateFullExtensionGraph(OptMap &);
-
-template <typename T>
-void generateDotFormatGraph(CommandContext &CC);
-
-template <typename T>
-void generatePngFormatGraph(CommandContext &CC);
-
 fs::path generateTxtFormatGraph(OptMap &OM) {
-  auto FilePath = getPath(OM[opts::Path]).append(OM[opts::FileName]).replace_extension(".txt");
+  auto FilePath = getPath(OM[opts::Path])
+                      .append(OM[opts::FileName])
+                      .replace_extension(".txt");
   std::ofstream TxtFile {FilePath}; 
   DGBT::generateGraph(TxtFile,
                       getOptInt(opts::NumNodes, OM[opts::NumNodes]),
@@ -182,33 +175,45 @@ fs::path generateTxtFormatGraph(OptMap &OM) {
   return FilePath;
 }
 
-template <>
-void generateDotFormatGraph<DGT>(CommandContext &CC) {
-  auto TxtFilePath = generateTxtFormatGraph(CC.OM);
-  std::ifstream TxtFile{TxtFilePath};
+template <typename GraphType>
+  requires std::derived_from<GraphType, DGT> &&
+           requires(GraphType Gr, std::ofstream Os) {
+             { Gr.dumpInDotFormat(Os) };
+           }
+fs::path generateDotFormatGraph(CommandContext &CC) {
+  auto FilePath = generateTxtFormatGraph(CC.OM);
+  std::ifstream TxtFile{FilePath};
   auto Edges = getGraphEdges(TxtFile);
-  DGT DG(Edges.cbegin(), Edges.cend());
-  std::ifstream DotFile{TxtFilePath.replace_extension(".dot")};
-  DG.dumpInDotFormat(DotFile);
-
-  if (CC.Com != coms::Cfg && CC.Com != coms::CfgPng) {
-    fs::remove(TxtFile);  
-  }
+  GraphType G(Edges.cbegin(), Edges.cend());
+  if (CC.Com != coms::Cfg && CC.Com != coms::DomTree)
+    fs::remove(FilePath);
+  std::ofstream DotFile{FilePath.replace_extension(".dot")};
+  G.dumpInDotFormat(DotFile, CC.OM[opts::NodeShape], CC.OM[opts::NodeColor],
+                    CC.OM[opts::EdgeShape], CC.OM[opts::EdgeColor]);
+  return FilePath;
 }
 
-template<>
-void generatePngFormateGraph<DGT>(CommandContext &CC) {
-  
+template <typename GraphType>
+  requires std::derived_from<GraphType, DGT>
+void generatePngFormatGraph(CommandContext &CC) {
+  auto DotFilePath = generateDotFormatGraph<GraphType>(CC);
+  graphs::dumpInPngFormat(DotFilePath);
+  if (CC.Com != coms::Cfg && CC.Com != coms::DomTree)
+    fs::remove(DotFilePath);
+  std::system(
+      "display "s.append(DotFilePath.replace_extension(".png")).c_str());
 }
 
-template<>
-void generateFullExtensionGraph<DGT>(OptMap &OM) {
-
+template <typename GraphType>
+  requires std::derived_from<GraphType, DGT>
+void generateFullExtensionGraph(CommandContext &CC) {
+  generatePngFormatGraph<GraphType>(CC);
 }
 
 template <std::input_iterator Iter>
 void printInvalidOptions(Iter Begin, Iter end, std::ostream &Os = std::cout) {
-  Os << "Error: invalid option"s + (end == std::next(Begin) ? ":" : "s:") << std::endl;
+  Os << "Error: invalid option"s + (end == std::next(Begin) ? ":" : "s:")
+     << std::endl;
   std::copy(Begin, end, std::ostream_iterator<std::string>(Os, "\n"));
   Os << "Try run with -h" << std::endl;
 }
@@ -217,7 +222,8 @@ void printInvalidOptions(Iter Begin, Iter end, std::ostream &Os = std::cout) {
 
 int main(int args, char **argv) {
   if (args < 2) {
-    throw std::runtime_error{"input error: expected command. Try run with -h\n"};
+    throw std::runtime_error{"input error: expected command. Try run with"
+                             "-h\n"};
   }
 
   static constexpr std::string_view DefFileName = "graph";
@@ -237,49 +243,45 @@ int main(int args, char **argv) {
   for (auto &OptStr : OptionSet | std::views::drop(1)) {
     auto Delimetr = OptStr.find_first_of('=');
     auto Opt = OptStr.substr(0, Delimetr);
-    std::cout << "OPT = \"" << Opt << "\"" << std::endl;
     if (Delimetr == OptStr.npos || !OptsMap.contains(Opt))
       ErrorOpts.push_back(std::move(Opt));
     else
       OptsMap[Opt] = std::move(OptStr.substr(++Delimetr));
-    std::cout << "ARG = " << OptsMap[Opt] << std::endl;
   }
   
   if (!ErrorOpts.empty()) {
     printInvalidOptions(ErrorOpts.cbegin(), ErrorOpts.cend());
+    return 1;
   }
 
+  CommandContext CC{OptsMap, OptionSet.front()};
   switch (getComCode(OptionSet.front())) {
     case ComCodes::Help:
       printHelp();
       break;
-#if 0
     case ComCodes::Cfg:
-      generateFullExtensionGraph<DGT>();
+      generateFullExtensionGraph<DGT>(CC);
       break;
-#endif
     case ComCodes::CfgTxt:
-      generateTxtFormatGraph(OptsMap);
+      generateTxtFormatGraph(CC.OM);
       break;
-#if 0
     case ComCodes::CfgDot:
-      generateDotFormatGraph<DGT>();
+      generateDotFormatGraph<DGT>(CC);
       break;
     case ComCodes::CfgPng:
-      generatePngFormatGraph<DGT>();
+      generatePngFormatGraph<DGT>(CC);
       break;
     case ComCodes::DomTree:
-      generateFullExtensionGraph<DTT>();
+      generateFullExtensionGraph<DTT>(CC);
       break;
     case ComCodes::DomTreeDot:
-      generateDotFormatGraph<DTT>();
+      generateDotFormatGraph<DTT>(CC);
       break;
     case ComCodes::DomTreePng:
-      generatePngFormatGraph<DTT>();
+      generatePngFormatGraph<DTT>(CC);
       break;
-#endif
     default:
       throw std::runtime_error{
-        std::string(OptionSet.front()).append(" is not available command. Try -help")};
+          std::string(CC.Com).append(" is not available command.Try -help")};
   }
 }

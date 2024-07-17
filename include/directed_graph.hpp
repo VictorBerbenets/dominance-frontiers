@@ -99,24 +99,12 @@ private:
 
 namespace fs = std::filesystem;
 
-namespace detail {
-
-auto dumpIntoPngImpl(fs::path PathToCreate, std::string FileName) {
-  static const char *DotSubstrEnd = ".dot";
-  fs::path FullPath = PathToCreate / (FileName + DotSubstrEnd);
-
+void dumpInPngFormat(fs::path PathToDotFile) {
   std::string DotCommand = "dot -Tpng ";
-  DotCommand.append(FullPath);
+  DotCommand.append(PathToDotFile);
   DotCommand.append(" -o ");
-  DotCommand.append(PathToCreate.append(FileName).replace_extension(".png"));
-  return DotCommand;
-}
+  DotCommand.append(PathToDotFile.replace_extension(".png"));
 
-} // namespace detail
-
-void dumpIntoPng(fs::path PathToCreate,
-                 std::string FileName) {
-  auto DotCommand = detail::dumpIntoPngImpl(PathToCreate, FileName);
   std::system(DotCommand.c_str());
 }
 
@@ -126,16 +114,16 @@ class DirectedGraph {
 public:
   using value_type = T;
 
+  static constexpr std::string_view DefNodeColor = "lightblue";
+  static constexpr std::string_view DefNodeShape = "circle";
+  static constexpr std::string_view DefEdgeColor = "red";
+  static constexpr std::string_view DefEdgeShape = "vee";
+
 protected:
   using NodeType = DirGraphNode<value_type>;
   using NodeTypePtr = NodeType *;
   using StoredNodePtr = std::unique_ptr<NodeType>;
   using EdgeType = std::pair<std::string, std::string>;
-  
-  static constexpr std::string_view DefNodeColor = "lightblue";
-  static constexpr std::string_view DefNodeShape = "circle";
-  static constexpr std::string_view DefEdgeColor = "red";
-  static constexpr std::string_view DefEdgeShape = "vee";
 
 public:
   template <std::input_iterator InputIt>
