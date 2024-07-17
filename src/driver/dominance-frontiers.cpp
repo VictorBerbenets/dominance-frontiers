@@ -1,14 +1,14 @@
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <ranges>
 #include <sstream>
-#include <filesystem>
 #include <stdexcept>
-#include <vector>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <ranges>
+#include <vector>
 
 #include "directed_graph.hpp"
 #include "dominance_tree_graph.hpp"
@@ -49,6 +49,7 @@ struct CommandContext final {
 };
 
 namespace opts {
+
 constexpr std::string_view Path = "--path";
 constexpr std::string_view NumNodes = "--num-nodes";
 constexpr std::string_view NumEdges = "--num-edges";
@@ -57,10 +58,14 @@ constexpr std::string_view EdgeColor = "--edge-color";
 constexpr std::string_view NodeShape = "--node-shape";
 constexpr std::string_view EdgeShape = "--edge-shape";
 constexpr std::string_view FileName = "--file-name";
+constexpr std::string_view GraphName = "--graph-name";
 constexpr std::string_view NodeName = "--node-name";
+constexpr std::string_view Arg = "--arg";
+
 }; // namespace opts
 
 namespace coms {
+
 constexpr std::string_view H = "-h";
 constexpr std::string_view Help = "-help";
 constexpr std::string_view Cfg = "-g=cfg";
@@ -70,12 +75,8 @@ constexpr std::string_view CfgPng = "-g=cfg-png";
 constexpr std::string_view DomTree = "-g=dom-tree";
 constexpr std::string_view DomTreeDot = "-g=dom-tree-dot";
 constexpr std::string_view DomTreePng = "-g=dom-tree-png";
-}; // namespace coms
 
-auto getOptionSet(int args, char **argv) {
-  std::vector<std::string> OptionsSet(argv, argv + args);
-  return OptionsSet;
-}
+}; // namespace coms
 
 enum class ComCodes : char {
   Help,
@@ -90,7 +91,7 @@ enum class ComCodes : char {
 };
 
 ComCodes getComCode(std::string_view Command) {
-  static std::unordered_map<std::string_view, ComCodes> ComCodesMap {
+  static std::unordered_map<std::string_view, ComCodes> ComCodesMap{
       {coms::H, ComCodes::Help},
       {coms::Help, ComCodes::Help},
       {coms::CfgDot, ComCodes::CfgDot},
@@ -99,8 +100,9 @@ ComCodes getComCode(std::string_view Command) {
       {coms::DomTree, ComCodes::DomTree},
       {coms::CfgTxt, ComCodes::CfgTxt},
       {coms::DomTreeDot, ComCodes::DomTreeDot},
-      {coms::DomTreePng, ComCodes::DomTreePng}, };
-  
+      {coms::DomTreePng, ComCodes::DomTreePng},
+  };
+
   auto FindIt = ComCodesMap.find(Command);
   if (FindIt == ComCodesMap.end())
     throw std::runtime_error{
@@ -117,14 +119,18 @@ void printHelp(std::ostream &Os = std::cout) {
   Os << "|-"
      << "To generate dominance tree in choosen format use next commands:"
      << std::endl;
-  Os << "|\t"
-     << "-g=dom-tree-dot\n|\t-g=dom-tree-png\n|\t-g=dom-tree"
+  Os << "|\t" << "-g=dom-tree-dot\n|\t-g=dom-tree-png\n|\t-g=dom-tree"
      << std::endl;
   Os << "|-"
      << "Note: commands -g=cfg and -g=dom-tree generate all graph formats."
      << std::endl;
   Os << "|-" << "Options:" << std::endl;
+  Os << "|\t"
+     << "--arg=<>        - generate graph from txt file with graph "
+        "representation."
+     << std::endl;
   Os << "|\t" << "--path=<>       - path to create files." << std::endl;
+  Os << "|\t" << "--graph-name=<> - set graph name." << std::endl;
   Os << "|\t" << "--num-nodes=<>  - set number of nodes." << std::endl;
   Os << "|\t" << "--num-edges=<>  - set the limit on the number of node edges."
      << std::endl;
@@ -146,7 +152,8 @@ void printHelp(std::ostream &Os = std::cout) {
      << "--file-name=<>  - set name for generated file(s) (name graph setted "
         "as default)."
      << std::endl;
-  Os << "|\t" << "--node-name=<>  - set name for nodes. BB setted as default." << std::endl;
+  Os << "|\t" << "--node-name=<>  - set name for nodes. BB setted as default."
+     << std::endl;
   Os << "|-"
      << "Note: you can use RGB format for color option (e.g. "
         "--node-color=#ffffff)."
@@ -156,27 +163,37 @@ void printHelp(std::ostream &Os = std::cout) {
 
 int getOptInt(std::string_view Opt, std::string_view Arg) {
   if (int Num = std::stoi(std::string(Arg)); Num < 0)
-    throw std::runtime_error {std::string(Opt).append(": invalid argument "s.append(Arg))};
+    throw std::runtime_error{
+        std::string(Opt).append(": invalid argument "s.append(Arg))};
   else
     return Num;
 }
 
-fs::path getPath(std::string_view PathStr) { 
-  if (fs::path Path {PathStr}; !fs::exists(Path))
-    throw std::runtime_error {Path.string().append(" is invalid path")};
-  else
-    return Path;
+void checkFilePath(const fs::path &Path) {
+  if (!fs::exists(Path))
+    throw std::runtime_error{Path.string().append(" is invalid path")};
+}
+
+fs::path getPath(std::string_view PathStr) {
+  fs::path Path{PathStr};
+  checkFilePath(Path);
+
+  return Path;
 }
 
 fs::path generateTxtFormatGraph(OptMap &OM) {
-  auto FilePath = getPath(OM[opts::Path])
-                      .append(OM[opts::FileName])
-                      .replace_extension(".txt");
-  std::ofstream TxtFile {FilePath}; 
-  DGBT::generateGraph(TxtFile,
-                      getOptInt(opts::NumNodes, OM[opts::NumNodes]),
-                      getOptInt(opts::NumEdges, OM[opts::NumEdges]),
-                      OM[opts::NodeName]);
+  fs::path FilePath;
+  if (FilePath = OM[opts::Arg]; FilePath.string().empty()) {
+    FilePath = getPath(OM[opts::Path])
+                   .append(OM[opts::FileName])
+                   .replace_extension(".txt");
+    std::ofstream TxtFile{FilePath};
+    DGBT::generateGraph(TxtFile, getOptInt(opts::NumNodes, OM[opts::NumNodes]),
+                        getOptInt(opts::NumEdges, OM[opts::NumEdges]),
+                        OM[opts::NodeName]);
+  } else {
+    checkFilePath(FilePath);
+  }
   return FilePath;
 }
 
@@ -190,11 +207,13 @@ fs::path generateDotFormatGraph(CommandContext &CC) {
   std::ifstream TxtFile{FilePath};
   auto Edges = getGraphEdges(TxtFile);
   GraphType G(Edges.cbegin(), Edges.cend());
-  if (CC.Com != coms::Cfg)
+  if (CC.Com != coms::Cfg && CC.OM[opts::Arg].empty())
     fs::remove(FilePath);
   std::ofstream DotFile{FilePath.replace_extension(".dot")};
-  G.dumpInDotFormat(DotFile, CC.OM[opts::NodeShape], CC.OM[opts::NodeColor],
-                    CC.OM[opts::EdgeShape], CC.OM[opts::EdgeColor]);
+  G.dumpInDotFormat(DotFile, CC.OM[opts::GraphName], CC.OM[opts::NodeShape],
+                    CC.OM[opts::NodeColor], CC.OM[opts::EdgeShape],
+                    CC.OM[opts::EdgeColor]);
+  DotFile.close();
   return FilePath;
 }
 
@@ -217,7 +236,7 @@ void generateFullExtensionGraph(CommandContext &CC) {
 
 template <std::input_iterator Iter>
 void printInvalidOptions(Iter Begin, Iter end, std::ostream &Os = std::cout) {
-  Os << "Error: invalid option"s + (end == std::next(Begin) ? ":" : "s:")
+  Os << "Error: invalid option"s.append(end == std::next(Begin) ? ":" : "s:")
      << std::endl;
   std::copy(Begin, end, std::ostream_iterator<std::string>(Os, "\n"));
   Os << "Try run with -h" << std::endl;
@@ -232,19 +251,20 @@ int main(int args, char **argv) {
   }
 
   static constexpr std::string_view DefFileName = "graph";
-  OptMap OptsMap {
-      {opts::Path, "."},
-      {opts::NumNodes, std::to_string(DGBT::DefNodeNum)},
-      {opts::NumEdges, std::to_string(DGBT::DefEdgeNum)},
-      {opts::NodeColor, std::string(DGT::DefNodeColor)},
-      {opts::EdgeColor, std::string(DGT::DefEdgeColor)},
-      {opts::NodeShape, std::string(DGT::DefNodeShape)},
-      {opts::EdgeShape, std::string(DGT::DefEdgeShape)},
-      {opts::FileName, std::string(DefFileName)},
-      {opts::NodeName, std::string(DGBT::DefNodeName)} };
+  OptMap OptsMap{{opts::Path, "."},
+                 {opts::NumNodes, std::to_string(DGBT::DefNodeNum)},
+                 {opts::NumEdges, std::to_string(DGBT::DefEdgeNum)},
+                 {opts::NodeColor, std::string(DGT::DefNodeColor)},
+                 {opts::EdgeColor, std::string(DGT::DefEdgeColor)},
+                 {opts::NodeShape, std::string(DGT::DefNodeShape)},
+                 {opts::EdgeShape, std::string(DGT::DefEdgeShape)},
+                 {opts::GraphName, std::string(DGT::DefGraphName)},
+                 {opts::FileName, std::string(DefFileName)},
+                 {opts::NodeName, std::string(DGBT::DefNodeName)},
+                 {opts::Arg, {}}};
 
-  auto OptionSet = getOptionSet(--args, ++argv);
   std::vector<std::string> ErrorOpts;
+  std::vector<std::string> OptionSet(std::next(argv), argv + args);
   for (auto &OptStr : OptionSet | std::views::drop(1)) {
     auto Delimetr = OptStr.find_first_of('=');
     auto Opt = OptStr.substr(0, Delimetr);
@@ -253,7 +273,7 @@ int main(int args, char **argv) {
     else
       OptsMap[Opt] = std::move(OptStr.substr(++Delimetr));
   }
-  
+
   if (!ErrorOpts.empty()) {
     printInvalidOptions(ErrorOpts.cbegin(), ErrorOpts.cend());
     return 1;
@@ -261,32 +281,32 @@ int main(int args, char **argv) {
 
   CommandContext CC{OptsMap, OptionSet.front()};
   switch (getComCode(OptionSet.front())) {
-    case ComCodes::Help:
-      printHelp();
-      break;
-    case ComCodes::Cfg:
-      generateFullExtensionGraph<DGT>(CC);
-      break;
-    case ComCodes::CfgTxt:
-      generateTxtFormatGraph(CC.OM);
-      break;
-    case ComCodes::CfgDot:
-      generateDotFormatGraph<DGT>(CC);
-      break;
-    case ComCodes::CfgPng:
-      generatePngFormatGraph<DGT>(CC);
-      break;
-    case ComCodes::DomTree:
-      generateFullExtensionGraph<DTT>(CC);
-      break;
-    case ComCodes::DomTreeDot:
-      generateDotFormatGraph<DTT>(CC);
-      break;
-    case ComCodes::DomTreePng:
-      generatePngFormatGraph<DTT>(CC);
-      break;
-    default:
-      throw std::runtime_error{std::string(CC.Com).append(
-          " is not available command. Try -help, -h.")};
+  case ComCodes::Help:
+    printHelp();
+    break;
+  case ComCodes::Cfg:
+    generateFullExtensionGraph<DGT>(CC);
+    break;
+  case ComCodes::CfgTxt:
+    generateTxtFormatGraph(CC.OM);
+    break;
+  case ComCodes::CfgDot:
+    generateDotFormatGraph<DGT>(CC);
+    break;
+  case ComCodes::CfgPng:
+    generatePngFormatGraph<DGT>(CC);
+    break;
+  case ComCodes::DomTree:
+    generateFullExtensionGraph<DTT>(CC);
+    break;
+  case ComCodes::DomTreeDot:
+    generateDotFormatGraph<DTT>(CC);
+    break;
+  case ComCodes::DomTreePng:
+    generatePngFormatGraph<DTT>(CC);
+    break;
+  default:
+    throw std::runtime_error{std::string(CC.Com).append(
+        " is not available command. Try -help, -h.")};
   }
 }
