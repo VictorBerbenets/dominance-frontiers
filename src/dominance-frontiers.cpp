@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "directed_graph.hpp"
-#include "dominance_tree_graph.hpp"
 #include "dominance_frontier_graph.hpp"
+#include "dominance_tree_graph.hpp"
 #include "graph_generator.hpp"
 
 namespace {

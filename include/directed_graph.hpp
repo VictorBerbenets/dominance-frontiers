@@ -98,14 +98,13 @@ private:
   std::vector<NodePtr> Successors;
   std::vector<NodePtr> Predecessors;
 };
-  
+
 using EdgeType = std::pair<std::string, std::string>;
 
 template <typename T>
-concept InputEdgeIter = std::input_iterator<T> && 
-                        requires(T It) {
-                          { *It } -> std::convertible_to<EdgeType>;
-                        };
+concept InputEdgeIter = std::input_iterator<T> && requires(T It) {
+  { *It } -> std::convertible_to<EdgeType>;
+};
 
 template <typename T>
   requires std::is_default_constructible_v<T>
@@ -149,20 +148,21 @@ public:
                   std::string_view NodeColor = DefNodeColor,
                   std::string_view EdgeShape = DefEdgeShape,
                   std::string_view EdgeColor = DefEdgeColor) const {
-    dumpInDotFormatBaseImpl(DotDump, GraphName, NodeShape,
-                            NodeColor, EdgeShape, EdgeColor); 
+    dumpInDotFormatBaseImpl(DotDump, GraphName, NodeShape, NodeColor, EdgeShape,
+                            EdgeColor);
     DotDump << "}\n";
   }
 
   // access random graph node ptr
   NodeTypePtr getNodePtr() const noexcept { return Nodes.front().get(); }
+
 protected:
   void dumpInDotFormatBaseImpl(std::ofstream &DotDump,
-                      std::string_view GraphName,
-                      std::string_view NodeShape,
-                      std::string_view NodeColor,
-                      std::string_view EdgeShape,
-                      std::string_view EdgeColor) const {
+                               std::string_view GraphName,
+                               std::string_view NodeShape,
+                               std::string_view NodeColor,
+                               std::string_view EdgeShape,
+                               std::string_view EdgeColor) const {
     DotDump << utils::formatPrint(
         "digraph {} {}\n"
         "\tdpi = 100;\n"
