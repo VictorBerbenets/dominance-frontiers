@@ -14,21 +14,16 @@
 namespace graphs {
 
 template <typename T> class DomTreeGraph : public DirectedGraph<T> {
+protected:
   using DirGraphType = DirectedGraph<T>;
   using DirGraphType::Nodes;
-  using typename DirectedGraph<T>::value_type;
-  using typename DirGraphType::EdgeType;
   using typename DirGraphType::NodeTypePtr;
 
-  using size_type = std::size_t;
   using DomTable = std::map<NodeTypePtr, std::set<NodeTypePtr>>;
-
 public:
-  template <std::forward_iterator ForwIt>
-    requires requires(ForwIt It) {
-      { *It } -> std::convertible_to<EdgeType>;
-    }
-  DomTreeGraph(ForwIt FBegin, ForwIt FEnd) : DirGraphType(FBegin, FEnd) {
+
+  template <InputEdgeIter EdgeIt>
+  DomTreeGraph(EdgeIt FBegin, EdgeIt FEnd) : DirGraphType(FBegin, FEnd) {
     std::map<NodeTypePtr, std::vector<NodeTypePtr>> ParentChildsMap;
 
     for (auto DomTbl = determineDominators();
@@ -54,6 +49,20 @@ public:
         ParentPtr->addSuccessor(ChildPtr);
       }
     }
+  }
+
+  std::vector<EdgeType> getEdges() const {
+    if (Nodes.empty())
+      return {};
+
+    std::vector<EdgeType> Edges;
+    for (const auto &UnNodePtr : Nodes) {
+      for (auto ParentPtr = UnNodePtr.get(); const auto *NodePtr :
+            ParentPtr->getSuccessors()) {
+        Edges.emplace_back(ParentPtr->getName(), NodePtr->getName());
+      }
+    }
+    return Edges;
   }
 
 private:
