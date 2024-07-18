@@ -12,6 +12,7 @@
 
 #include "directed_graph.hpp"
 #include "dominance_tree_graph.hpp"
+#include "dominance_frontier_graph.hpp"
 #include "graph_generator.hpp"
 
 namespace {
@@ -221,7 +222,7 @@ template <typename GraphType>
   requires std::derived_from<GraphType, DGT>
 void generatePngFormatGraph(CommandContext &CC) {
   auto DotFilePath = generateDotFormatGraph<GraphType>(CC);
-  graphs::dumpInPngFormat(DotFilePath);
+  graphs::utils::dumpInPngFormat(DotFilePath);
   if (CC.Com != coms::Cfg && CC.Com != coms::DomTree)
     fs::remove(DotFilePath);
   std::system(
@@ -242,6 +243,20 @@ void printInvalidOptions(Iter Begin, Iter end, std::ostream &Os = std::cout) {
   Os << "Try run with -h" << std::endl;
 }
 
+static constexpr std::string_view DefFileName = "graph";
+
+OptMap OptsMap{{opts::Path, "."},
+               {opts::NumNodes, std::to_string(DGBT::DefNodeNum)},
+               {opts::NumEdges, std::to_string(DGBT::DefEdgeNum)},
+               {opts::NodeColor, std::string(DGT::DefNodeColor)},
+               {opts::EdgeColor, std::string(DGT::DefEdgeColor)},
+               {opts::NodeShape, std::string(DGT::DefNodeShape)},
+               {opts::EdgeShape, std::string(DGT::DefEdgeShape)},
+               {opts::GraphName, std::string(DGT::DefGraphName)},
+               {opts::FileName, std::string(DefFileName)},
+               {opts::NodeName, std::string(DGBT::DefNodeName)},
+               {opts::Arg, {}}};
+
 } // namespace
 
 int main(int args, char **argv) {
@@ -249,19 +264,6 @@ int main(int args, char **argv) {
     throw std::runtime_error{"input error: expected command. Try run with"
                              " -h\n"};
   }
-
-  static constexpr std::string_view DefFileName = "graph";
-  OptMap OptsMap{{opts::Path, "."},
-                 {opts::NumNodes, std::to_string(DGBT::DefNodeNum)},
-                 {opts::NumEdges, std::to_string(DGBT::DefEdgeNum)},
-                 {opts::NodeColor, std::string(DGT::DefNodeColor)},
-                 {opts::EdgeColor, std::string(DGT::DefEdgeColor)},
-                 {opts::NodeShape, std::string(DGT::DefNodeShape)},
-                 {opts::EdgeShape, std::string(DGT::DefEdgeShape)},
-                 {opts::GraphName, std::string(DGT::DefGraphName)},
-                 {opts::FileName, std::string(DefFileName)},
-                 {opts::NodeName, std::string(DGBT::DefNodeName)},
-                 {opts::Arg, {}}};
 
   std::vector<std::string> ErrorOpts;
   std::vector<std::string> OptionSet(std::next(argv), argv + args);

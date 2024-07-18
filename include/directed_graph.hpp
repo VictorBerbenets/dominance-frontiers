@@ -86,7 +86,7 @@ public:
   size_type getPredecessorsCount() const noexcept { return Predecessors.size(); }
   size_type getSuccessorsCount() const noexcept { return Successors.size(); }
 
-  void clearThreads() {
+  void clearThreads() noexcept {
     Successors.clear();
     Predecessors.clear();
   }
@@ -98,17 +98,14 @@ private:
   std::vector<NodePtr> Successors;
   std::vector<NodePtr> Predecessors;
 };
+  
+using EdgeType = std::pair<std::string, std::string>;
 
-namespace fs = std::filesystem;
-
-void dumpInPngFormat(fs::path PathToDotFile) {
-  std::string DotCommand = "dot -Tpng ";
-  DotCommand.append(PathToDotFile);
-  DotCommand.append(" -o ");
-  DotCommand.append(PathToDotFile.replace_extension(".png"));
-
-  std::system(DotCommand.c_str());
-}
+template <typename T>
+concept InputEdgeIter = std::input_iterator<T> && 
+                        requires(T It) {
+                          { *It } -> std::convertible_to<EdgeType>;
+                        };
 
 template <typename T>
   requires std::is_default_constructible_v<T>
@@ -126,13 +123,9 @@ protected:
   using NodeType = DirGraphNode<value_type>;
   using NodeTypePtr = NodeType *;
   using StoredNodePtr = std::unique_ptr<NodeType>;
-  using EdgeType = std::pair<std::string, std::string>;
 
 public:
-  template <std::input_iterator InputIt>
-    requires requires(InputIt It) {
-      { *It } -> std::convertible_to<EdgeType>;
-    }
+  template <InputEdgeIter InputIt>
   DirectedGraph(InputIt BeginIt, InputIt EndIt) {
     std::unordered_map<std::string, NodeType *> Vertices;
 
@@ -140,7 +133,7 @@ public:
       for (auto &V : {BeginIt->first, BeginIt->second}) {
         if (!Vertices.contains(V)) {
           Nodes.push_back(std::make_unique<NodeType>(value_type(), V, this));
-          Vertices.emplace(V, Nodes.back().get());
+          Vertices.emplace(std::move(V), Nodes.back().get());
         }
       }
       Vertices[BeginIt->first]->addSuccessor(Vertices[BeginIt->second]);
@@ -156,6 +149,20 @@ public:
                   std::string_view NodeColor = DefNodeColor,
                   std::string_view EdgeShape = DefEdgeShape,
                   std::string_view EdgeColor = DefEdgeColor) const {
+    dumpInDotFormatBaseImpl(DotDump, GraphName, NodeShape,
+                            NodeColor, EdgeShape, EdgeColor); 
+    DotDump << "}\n";
+  }
+
+  // access random graph node ptr
+  NodeTypePtr getNodePtr() const noexcept { return Nodes.front().get(); }
+protected:
+  void dumpInDotFormatBaseImpl(std::ofstream &DotDump,
+                      std::string_view GraphName,
+                      std::string_view NodeShape,
+                      std::string_view NodeColor,
+                      std::string_view EdgeShape,
+                      std::string_view EdgeColor) const {
     DotDump << utils::formatPrint(
         "digraph {} {}\n"
         "\tdpi = 100;\n"
@@ -166,17 +173,14 @@ public:
         "edge [color = {}, arrowhead = {}, arrowsize = 1,"
         "penwidth = 1.2];\n",
         GraphName, '{', NodeShape, NodeColor, EdgeColor, EdgeShape);
+
     for (const auto &Ptr : Nodes) {
       auto Name = Ptr.get()->getName();
       for (auto Vertex : Ptr.get()->getSuccessors()) {
-        DotDump << Name << " -> " << Vertex->getName() << ";" << std::endl;
+        DotDump << utils::formatPrint("{} -> {};\n", Name, Vertex->getName());
       }
     }
-    DotDump << "}\n";
   }
-
-  // access random graph node ptr
-  NodeTypePtr getNodePtr() const noexcept { return Nodes.front().get(); }
 
 protected:
   std::vector<StoredNodePtr> Nodes;
