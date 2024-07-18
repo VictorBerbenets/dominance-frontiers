@@ -24,6 +24,7 @@ using namespace std::literals::string_literals;
 using value_type = int;
 using DGT = graphs::DirectedGraph<value_type>;
 using DTT = graphs::DomTreeGraph<value_type>;
+using DJGT = graphs::DomJoinGraph<value_type>;
 using DGBT = graphs::DirGraphBuilder;
 using OptIter = typename std::vector<std::string>::iterator;
 using OptMap = std::unordered_map<std::string_view, std::string>;
@@ -76,6 +77,12 @@ constexpr std::string_view CfgPng = "-g=cfg-png";
 constexpr std::string_view DomTree = "-g=dom-tree";
 constexpr std::string_view DomTreeDot = "-g=dom-tree-dot";
 constexpr std::string_view DomTreePng = "-g=dom-tree-png";
+constexpr std::string_view JoinGraph = "-g=join-graph";
+constexpr std::string_view JoinGraphDot = "-g=join-graph-dot";
+constexpr std::string_view JoinGraphPng = "-g=join-graph-png";
+constexpr std::string_view DomFrontier = "-g=dom-frontier";
+constexpr std::string_view DomFrontierDot= "-g=dom-frontier-dot";
+constexpr std::string_view DomFrontierPng = "-g=dom-frontier-png";
 
 }; // namespace coms
 
@@ -88,7 +95,13 @@ enum class ComCodes : char {
   DomTreeDot,
   DomTreePng,
   DomTreeTxt,
-  DomTree
+  DomTree,
+  JoinGraph,
+  JoinGraphDot,
+  JoinGraphPng,
+  DomFrontier,
+  DomFrontierDot,
+  DomFrontierPng
 };
 
 ComCodes getComCode(std::string_view Command) {
@@ -102,6 +115,12 @@ ComCodes getComCode(std::string_view Command) {
       {coms::CfgTxt, ComCodes::CfgTxt},
       {coms::DomTreeDot, ComCodes::DomTreeDot},
       {coms::DomTreePng, ComCodes::DomTreePng},
+      {coms::JoinGraphPng, ComCodes::JoinGraphPng},
+      {coms::JoinGraphDot, ComCodes::JoinGraphDot},
+      {coms::JoinGraph, ComCodes::JoinGraph},
+      {coms::DomFrontierDot, ComCodes::DomFrontierDot},
+      {coms::DomFrontierPng, ComCodes::DomFrontierPng},
+      {coms::DomFrontier, ComCodes::DomFrontier},
   };
 
   auto FindIt = ComCodesMap.find(Command);
@@ -123,8 +142,18 @@ void printHelp(std::ostream &Os = std::cout) {
   Os << "|\t" << "-g=dom-tree-dot\n|\t-g=dom-tree-png\n|\t-g=dom-tree"
      << std::endl;
   Os << "|-"
-     << "Note: commands -g=cfg and -g=dom-tree generate all graph formats."
+     << "To generate dominance join graph in choosen format use next commands:"
      << std::endl;
+  Os << "|\t" << "-g=join-graph-dot\n|\t-g=join-graph-png\n|\t-g=join-graph"
+     << std::endl;
+  Os << "|-"
+     << "To generate dominance frontier graph in choosen format use next commands:"
+     << std::endl;
+  Os << "|\t" << "-g=dom-frontier-dot\n|\t-g=dom-frontier-png\n|\t-g=dom-frontier"
+     << std::endl;
+  Os << "|-"
+     << "Note: commands -g=cfg, -g=dom-tree, -g=join-graph, -g=dom-frontier "
+     "generate all graph formats." << std::endl;
   Os << "|-" << "Options:" << std::endl;
   Os << "|\t"
      << "--arg=<>        - generate graph from txt file with graph "
@@ -182,6 +211,12 @@ fs::path getPath(std::string_view PathStr) {
   return Path;
 }
 
+template <typename GraphType>
+concept DotGraphTipe = std::same_as<GraphType, DJGT> || (std::derived_from<GraphType, DGT> && 
+                       requires(GraphType Gr, std::ofstream Os) {
+                         { Gr.dumpInDotFormat(Os) };
+                       });
+
 fs::path generateTxtFormatGraph(OptMap &OM) {
   fs::path FilePath;
   if (FilePath = OM[opts::Arg]; FilePath.string().empty()) {
@@ -198,11 +233,7 @@ fs::path generateTxtFormatGraph(OptMap &OM) {
   return FilePath;
 }
 
-template <typename GraphType>
-  requires std::derived_from<GraphType, DGT> &&
-           requires(GraphType Gr, std::ofstream Os) {
-             { Gr.dumpInDotFormat(Os) };
-           }
+template <DotGraphTipe GraphType>
 fs::path generateDotFormatGraph(CommandContext &CC) {
   auto FilePath = generateTxtFormatGraph(CC.OM);
   std::ifstream TxtFile{FilePath};
@@ -218,19 +249,18 @@ fs::path generateDotFormatGraph(CommandContext &CC) {
   return FilePath;
 }
 
-template <typename GraphType>
-  requires std::derived_from<GraphType, DGT>
+template <DotGraphTipe GraphType>
 void generatePngFormatGraph(CommandContext &CC) {
   auto DotFilePath = generateDotFormatGraph<GraphType>(CC);
   graphs::utils::dumpInPngFormat(DotFilePath);
-  if (CC.Com != coms::Cfg && CC.Com != coms::DomTree)
+  if (CC.Com != coms::Cfg && CC.Com != coms::DomTree && CC.Com != coms::JoinGraph,
+      CC.Com != coms::DomFrontier)
     fs::remove(DotFilePath);
   std::system(
       "display "s.append(DotFilePath.replace_extension(".png")).c_str());
 }
 
-template <typename GraphType>
-  requires std::derived_from<GraphType, DGT>
+template <DotGraphTipe GraphType>
 void generateFullExtensionGraph(CommandContext &CC) {
   generatePngFormatGraph<GraphType>(CC);
 }
@@ -243,7 +273,7 @@ void printInvalidOptions(Iter Begin, Iter end, std::ostream &Os = std::cout) {
   Os << "Try run with -h" << std::endl;
 }
 
-static constexpr std::string_view DefFileName = "graph";
+constexpr std::string_view DefFileName = "graph";
 
 OptMap OptsMap{{opts::Path, "."},
                {opts::NumNodes, std::to_string(DGBT::DefNodeNum)},
@@ -306,6 +336,15 @@ int main(int args, char **argv) {
     break;
   case ComCodes::DomTreePng:
     generatePngFormatGraph<DTT>(CC);
+    break;
+  case ComCodes::JoinGraph:
+    generateFullExtensionGraph<DJGT>(CC);
+    break;
+  case ComCodes::JoinGraphDot:
+    generateDotFormatGraph<DJGT>(CC);
+    break;
+  case ComCodes::JoinGraphPng:
+    generatePngFormatGraph<DJGT>(CC);
     break;
   default:
     throw std::runtime_error{std::string(CC.Com).append(

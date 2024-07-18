@@ -24,7 +24,7 @@ public:
   template <ForwEdgeIter FIter>
   DomJoinGraph(FIter Begin, FIter End) : DTG(Begin, End) {
     auto TreeEdges = DTG::getEdges();
-    std::set_difference(TreeEdges.cbegin(), TreeEdges.cend(), Begin, End,
+    std::set_difference(Begin, End, TreeEdges.cbegin(), TreeEdges.cend(),
                         std::back_inserter(JoinEdges));
   }
 
