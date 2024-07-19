@@ -208,11 +208,11 @@ void printHelp(std::ostream &Os = std::cout) {
 }
 
 template <typename GraphType>
-concept DotGraphTipe = std::same_as<GraphType, DJGT> ||
-                      (std::derived_from<GraphType, DGT> && 
-                       requires(GraphType Gr, std::ofstream Os) {
-                         { Gr.dumpInDotFormat(Os) };
-                       });
+concept DotGraphTipe =
+    std::same_as<GraphType, DJGT> || (std::derived_from<GraphType, DGT> &&
+                                      requires(GraphType Gr, std::ofstream Os) {
+                                        { Gr.dumpInDotFormat(Os) };
+                                      });
 
 fs::path generateTxtFormatGraph(OptMap &OM) {
   fs::path FilePath;
