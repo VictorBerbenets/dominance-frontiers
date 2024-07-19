@@ -19,21 +19,22 @@ namespace {
 
 namespace fs = std::filesystem;
 
+using namespace graphs;
+using namespace graphs::utils;
 using namespace std::literals::string_literals;
 
 using value_type = int;
-using DGT = graphs::DirectedGraph<value_type>;
-using DTT = graphs::DomTreeGraph<value_type>;
-using DJGT = graphs::DomJoinGraph<value_type>;
-using DGBT = graphs::DirGraphBuilder;
+using DGT = DirectedGraph<value_type>;
+using DTT = DomTreeGraph<value_type>;
+using DJGT = DomJoinGraph<value_type>;
+using DGBT = DirGraphBuilder;
 using OptIter = typename std::vector<std::string>::iterator;
 using OptMap = std::unordered_map<std::string_view, std::string>;
 
-std::vector<std::pair<std::string, std::string>>
-getGraphEdges(std::ifstream &Ifs) {
+std::vector<EdgeType> getGraphEdges(std::ifstream &Ifs) {
   static constexpr std::string_view Arrow = " --> ";
 
-  std::vector<std::pair<std::string, std::string>> Edges;
+  std::vector<EdgeType> Edges;
   std::string Line;
   while (std::getline(Ifs >> std::ws, Line)) {
 
@@ -86,6 +87,11 @@ constexpr std::string_view DomFrontierPng = "-g=dom-frontier-png";
 
 }; // namespace coms
 
+constexpr std::string_view DefFileName = "graph";
+constexpr int ErrorInputCode = 0x777;
+
+std::vector<std::string> InputErrors;
+
 enum class ComCodes : char {
   Help,
   CfgDot,
@@ -104,29 +110,39 @@ enum class ComCodes : char {
   DomFrontierPng
 };
 
-ComCodes getComCode(std::string_view Command) {
-  static std::unordered_map<std::string_view, ComCodes> ComCodesMap{
-      {coms::H, ComCodes::Help},
-      {coms::Help, ComCodes::Help},
-      {coms::CfgDot, ComCodes::CfgDot},
-      {coms::CfgPng, ComCodes::CfgPng},
-      {coms::Cfg, ComCodes::Cfg},
-      {coms::DomTree, ComCodes::DomTree},
-      {coms::CfgTxt, ComCodes::CfgTxt},
-      {coms::DomTreeDot, ComCodes::DomTreeDot},
-      {coms::DomTreePng, ComCodes::DomTreePng},
-      {coms::JoinGraphPng, ComCodes::JoinGraphPng},
-      {coms::JoinGraphDot, ComCodes::JoinGraphDot},
-      {coms::JoinGraph, ComCodes::JoinGraph},
-      {coms::DomFrontierDot, ComCodes::DomFrontierDot},
-      {coms::DomFrontierPng, ComCodes::DomFrontierPng},
-      {coms::DomFrontier, ComCodes::DomFrontier},
-  };
+OptMap OptsMap{{opts::Path, "."},
+               {opts::NumNodes, std::to_string(DGBT::DefNodeNum)},
+               {opts::NumEdges, std::to_string(DGBT::DefEdgeNum)},
+               {opts::NodeColor, std::string(DGT::DefNodeColor)},
+               {opts::EdgeColor, std::string(DGT::DefEdgeColor)},
+               {opts::NodeShape, std::string(DGT::DefNodeShape)},
+               {opts::EdgeShape, std::string(DGT::DefEdgeShape)},
+               {opts::GraphName, std::string(DGT::DefGraphName)},
+               {opts::FileName, std::string(DefFileName)},
+               {opts::NodeName, std::string(DGBT::DefNodeName)},
+               {opts::Arg, {}}};
 
+std::unordered_map<std::string_view, ComCodes> ComCodesMap{
+    {coms::H, ComCodes::Help},
+    {coms::Help, ComCodes::Help},
+    {coms::CfgDot, ComCodes::CfgDot},
+    {coms::CfgPng, ComCodes::CfgPng},
+    {coms::Cfg, ComCodes::Cfg},
+    {coms::DomTree, ComCodes::DomTree},
+    {coms::CfgTxt, ComCodes::CfgTxt},
+    {coms::DomTreeDot, ComCodes::DomTreeDot},
+    {coms::DomTreePng, ComCodes::DomTreePng},
+    {coms::JoinGraphPng, ComCodes::JoinGraphPng},
+    {coms::JoinGraphDot, ComCodes::JoinGraphDot},
+    {coms::JoinGraph, ComCodes::JoinGraph},
+    {coms::DomFrontierDot, ComCodes::DomFrontierDot},
+    {coms::DomFrontierPng, ComCodes::DomFrontierPng},
+    {coms::DomFrontier, ComCodes::DomFrontier},
+};
+
+ComCodes getComCode(std::string_view Command) {
   auto FindIt = ComCodesMap.find(Command);
-  if (FindIt == ComCodesMap.end())
-    throw std::runtime_error{
-        std::string(Command).append(" is not available command. Try -help")};
+  assert(FindIt != ComCodesMap.end());
   return FindIt->second;
 }
 
@@ -191,28 +207,9 @@ void printHelp(std::ostream &Os = std::cout) {
   Os << std::string(100, '-') << std::endl;
 }
 
-int getOptInt(std::string_view Opt, std::string_view Arg) {
-  if (int Num = std::stoi(std::string(Arg)); Num < 0)
-    throw std::runtime_error{
-        std::string(Opt).append(": invalid argument "s.append(Arg))};
-  else
-    return Num;
-}
-
-void checkFilePath(const fs::path &Path) {
-  if (!fs::exists(Path))
-    throw std::runtime_error{Path.string().append(" is invalid path")};
-}
-
-fs::path getPath(std::string_view PathStr) {
-  fs::path Path{PathStr};
-  checkFilePath(Path);
-
-  return Path;
-}
-
 template <typename GraphType>
-concept DotGraphTipe = std::same_as<GraphType, DJGT> || (std::derived_from<GraphType, DGT> && 
+concept DotGraphTipe = std::same_as<GraphType, DJGT> ||
+                      (std::derived_from<GraphType, DGT> && 
                        requires(GraphType Gr, std::ofstream Os) {
                          { Gr.dumpInDotFormat(Os) };
                        });
@@ -220,15 +217,12 @@ concept DotGraphTipe = std::same_as<GraphType, DJGT> || (std::derived_from<Graph
 fs::path generateTxtFormatGraph(OptMap &OM) {
   fs::path FilePath;
   if (FilePath = OM[opts::Arg]; FilePath.string().empty()) {
-    FilePath = getPath(OM[opts::Path])
+    FilePath = fs::path(OM[opts::Path])
                    .append(OM[opts::FileName])
                    .replace_extension(".txt");
     std::ofstream TxtFile{FilePath};
-    DGBT::generateGraph(TxtFile, getOptInt(opts::NumNodes, OM[opts::NumNodes]),
-                        getOptInt(opts::NumEdges, OM[opts::NumEdges]),
-                        OM[opts::NodeName]);
-  } else {
-    checkFilePath(FilePath);
+    DGBT::generateGraph(TxtFile, std::stoi(OM[opts::NumNodes]),
+                        std::stoi(OM[opts::NumEdges]), OM[opts::NodeName]);
   }
   return FilePath;
 }
@@ -252,12 +246,13 @@ fs::path generateDotFormatGraph(CommandContext &CC) {
 template <DotGraphTipe GraphType>
 void generatePngFormatGraph(CommandContext &CC) {
   auto DotFilePath = generateDotFormatGraph<GraphType>(CC);
-  graphs::utils::dumpInPngFormat(DotFilePath);
+  dumpInPngFormat(DotFilePath);
   if (CC.Com != coms::Cfg && CC.Com != coms::DomTree && CC.Com != coms::JoinGraph,
       CC.Com != coms::DomFrontier)
     fs::remove(DotFilePath);
   std::system(
-      "display "s.append(DotFilePath.replace_extension(".png")).c_str());
+      formatPrint("display {}", DotFilePath.replace_extension(".png").string())
+          .c_str());
 }
 
 template <DotGraphTipe GraphType>
@@ -265,54 +260,69 @@ void generateFullExtensionGraph(CommandContext &CC) {
   generatePngFormatGraph<GraphType>(CC);
 }
 
-template <std::input_iterator Iter>
-void printInvalidOptions(Iter Begin, Iter end, std::ostream &Os = std::cout) {
-  Os << "Error: invalid option"s.append(end == std::next(Begin) ? ":" : "s:")
-     << std::endl;
-  std::copy(Begin, end, std::ostream_iterator<std::string>(Os, "\n"));
-  Os << "Try run with -h" << std::endl;
+bool checkCLArgsOnValidity(std::string_view Command) {
+  if (!ComCodesMap.contains(Command))
+    InputErrors.push_back(formatPrint(
+        "Input error: {} is not available command. Try -help", Command));
+
+  if (const auto &Path = OptsMap[opts::Path]; !fs::exists(Path))
+    InputErrors.push_back(formatPrint("Input error: {} is invalid path", Path));
+
+  auto CheckIntArgOption = [&](std::string_view Option) {
+    try {
+      int Arg = std::stoi(OptsMap[Option]);
+      if (Arg <= 0) {
+        InputErrors.push_back(formatPrint(
+            "Input error: {}=: invalid argument: {}, must be positive", Option,
+            Arg));
+      } else {
+        return Arg;
+      }
+    } catch (...) {
+      InputErrors.push_back(
+          formatPrint("Input error: {}=: invalid argument", Option));
+    }
+    return 0;
+  };
+
+  if (int NumNodes = CheckIntArgOption(opts::NumNodes),
+      NumEdges = CheckIntArgOption(opts::NumEdges);
+      NumNodes && NumEdges && NumNodes <= NumEdges) {
+    InputErrors.push_back(
+        formatPrint("Input error: invalid set of arguments: number of nodes "
+                    "must be greater than number of edges"));
+  }
+
+  return InputErrors.empty();
 }
-
-constexpr std::string_view DefFileName = "graph";
-
-OptMap OptsMap{{opts::Path, "."},
-               {opts::NumNodes, std::to_string(DGBT::DefNodeNum)},
-               {opts::NumEdges, std::to_string(DGBT::DefEdgeNum)},
-               {opts::NodeColor, std::string(DGT::DefNodeColor)},
-               {opts::EdgeColor, std::string(DGT::DefEdgeColor)},
-               {opts::NodeShape, std::string(DGT::DefNodeShape)},
-               {opts::EdgeShape, std::string(DGT::DefEdgeShape)},
-               {opts::GraphName, std::string(DGT::DefGraphName)},
-               {opts::FileName, std::string(DefFileName)},
-               {opts::NodeName, std::string(DGBT::DefNodeName)},
-               {opts::Arg, {}}};
 
 } // namespace
 
 int main(int args, char **argv) {
   if (args < 2) {
-    throw std::runtime_error{"input error: expected command. Try run with"
-                             " -h\n"};
+    std::cerr << "input error: expected command. Try run with -h" << std::endl;
+    return ErrorInputCode;
   }
 
-  std::vector<std::string> ErrorOpts;
   std::vector<std::string> OptionSet(std::next(argv), argv + args);
   for (auto &OptStr : OptionSet | std::views::drop(1)) {
     auto Delimetr = OptStr.find_first_of('=');
     auto Opt = OptStr.substr(0, Delimetr);
     if (Delimetr == OptStr.npos || !OptsMap.contains(Opt))
-      ErrorOpts.push_back(std::move(Opt));
+      InputErrors.push_back(
+          formatPrint("Input error: invalid option: {}", std::move(Opt)));
     else
       OptsMap[Opt] = std::move(OptStr.substr(++Delimetr));
   }
 
-  if (!ErrorOpts.empty()) {
-    printInvalidOptions(ErrorOpts.cbegin(), ErrorOpts.cend());
-    return 1;
+  if (!checkCLArgsOnValidity(OptionSet.front())) {
+    std::ranges::copy(InputErrors,
+                      std::ostream_iterator<std::string>(std::cerr, "\n"));
+    return ErrorInputCode;
   }
 
   CommandContext CC{OptsMap, OptionSet.front()};
-  switch (getComCode(OptionSet.front())) {
+  switch (getComCode(CC.Com)) {
   case ComCodes::Help:
     printHelp();
     break;
