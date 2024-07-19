@@ -7,6 +7,8 @@
 #include <string_view>
 #include <vector>
 
+#include "utils.hpp"
+
 namespace graphs {
 
 class DirGraphBuilder final {
@@ -42,7 +44,7 @@ public:
     std::generate_n(std::inserter(FreeNodes, FreeNodes.end()), NodeNum - 1,
                     [&FreeNodes] { return FreeNodes.size() + 1; });
     // Making tree graph
-    printEdge(OutFile, std::string(NodeName) + "_", 0, 1);
+    printEdge(OutFile, NodeName, 0, 1);
     Graph[0].push_back(1);
     FreeNodes.erase(FreeNodes.begin());
     for (size_type NodeCount = 1; NodeCount < Graph.size(); ++NodeCount) {
@@ -53,7 +55,7 @@ public:
            SuccessorsCount < SuccessorsNum && !FreeNodes.empty();
            ++SuccessorsCount) {
         auto Successor = *FreeNodes.begin();
-        printEdge(OutFile, std::string(NodeName) + "_", NodeCount, Successor);
+        printEdge(OutFile, NodeName, NodeCount, Successor);
         // saving Successor
         Graph[NodeCount].push_back(Successor);
         FreeNodes.erase(FreeNodes.begin());
@@ -75,7 +77,7 @@ public:
           auto CellId = getRandomUnsInt(Engine, 0, Diff.size() - 1);
           auto NodeTo = Diff[CellId];
           if (NodeCount != NodeTo)
-            printEdge(OutFile, std::string(NodeName) + "_", NodeCount, NodeTo);
+            printEdge(OutFile, NodeName, NodeCount, NodeTo);
           Diff.erase(Diff.begin() + CellId);
         }
       }
@@ -83,10 +85,12 @@ public:
   }
 
 private:
-  static void printEdge(std::ofstream &OutFile, const std::string &NodeName,
+  static void printEdge(std::ofstream &OutFile, std::string_view NodeName,
                         size_type NodeFrom, size_type NodeTo) {
-    OutFile << NodeName + std::to_string(NodeFrom) << " --> "
-            << NodeName + std::to_string(NodeTo) << std::endl;
+
+    auto Str = utils::formatPrint("{}_{} --> {}_{}\n", NodeName, NodeFrom,
+                                  NodeName, NodeTo);
+    OutFile << Str;
   }
 
   static size_type getRandomUnsInt(GeneratorType &Gener, size_type LowInt,
