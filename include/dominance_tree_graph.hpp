@@ -4,9 +4,8 @@
 #include <cassert>
 #include <concepts>
 #include <iterator>
-#include <ranges>
-#include <map>
 #include <queue>
+#include <ranges>
 #include <set>
 
 #include "directed_graph.hpp"
@@ -15,18 +14,18 @@ namespace graphs {
 
 template <typename T> class DomTreeGraph : public DirectedGraph<T> {
 protected:
-  using DirGraphType = DirectedGraph<T>;
-  using DirGraphType::Nodes;
-  using typename DirGraphType::NodeTypePtr;
+  using DGT = DirectedGraph<T>;
+  using DGT::Nodes;
+  using typename DGT::NodeTypePtr;
 
-  using DomTable = std::map<NodeTypePtr, std::set<NodeTypePtr>>;
 public:
+  using DTT = DomTreeGraph<T>;
 
   template <InputEdgeIter EdgeIt>
-  DomTreeGraph(EdgeIt FBegin, EdgeIt FEnd) : DirGraphType(FBegin, FEnd) {
+  DomTreeGraph(EdgeIt FBegin, EdgeIt FEnd) : DGT(FBegin, FEnd) {
     std::map<NodeTypePtr, std::vector<NodeTypePtr>> ParentChildsMap;
 
-    for (auto DomTbl = determineDominators();
+    for (auto DomTbl = DGT::determineDominators();
          auto &[NodePtr, DomSet] : DomTbl) {
       DomSet.erase(NodePtr);
       if (DomSet.empty()) {
@@ -41,8 +40,8 @@ public:
       }
     }
     // Clean previous graph
-    std::ranges::for_each(
-        Nodes, [](auto &UniquePtr) { UniquePtr.get()->clearThreads(); });
+    rgs::for_each(Nodes,
+                  [](auto &UniquePtr) { UniquePtr.get()->clearThreads(); });
     // Create tree threads
     for (auto &[ParentPtr, Children] : ParentChildsMap) {
       for (auto *ChildPtr : Children) {
@@ -66,51 +65,6 @@ public:
   }
 
 private:
-  /*
-   * Dom(n) = n \/ ( /\ Dom(m)), where m is a set of predecessors of the n
-   */
-  DomTable determineDominators() const {
-    if (Nodes.empty())
-      return {};
-
-    DomTable DomTbl;
-    std::set<NodeTypePtr> Set;
-    std::transform(Nodes.begin(), Nodes.end(), std::inserter(Set, Set.end()),
-                   [](auto &UniquePtr) { return UniquePtr.get(); });
-    std::transform(Nodes.begin(), Nodes.end(),
-                   std::inserter(DomTbl, DomTbl.end()),
-                   [&Set](auto &UniquePtr) {
-                     return std::make_pair(UniquePtr.get(), Set);
-                   });
-
-    auto FrontPtr = Nodes.front().get();
-    DomTbl[FrontPtr].clear();
-    DomTbl[FrontPtr].insert(FrontPtr);
-
-    bool Changed = true;
-    while (Changed) {
-      Changed = false;
-      for (auto &UniquePtr : Nodes) {
-        auto NodePtr = UniquePtr.get();
-        auto TmpSet = DomTbl[NodePtr];
-        for (auto Pred : NodePtr->getPredecessors()) {
-          auto &CompSet = DomTbl[Pred];
-          std::set<NodeTypePtr> SaveComp;
-          std::set_intersection(CompSet.begin(), CompSet.end(), TmpSet.begin(),
-                                TmpSet.end(),
-                                std::inserter(SaveComp, SaveComp.end()));
-          TmpSet = std::move(SaveComp);
-        }
-        TmpSet.insert(NodePtr);
-        Changed |= DomTbl[NodePtr] != TmpSet;
-        if (DomTbl[NodePtr] != TmpSet) {
-          DomTbl[NodePtr] = std::move(TmpSet);
-        }
-      }
-    }
-
-    return DomTbl;
-  }
   // need to make faster
   NodeTypePtr getClosest(const std::set<NodeTypePtr> &DomSet,
                          NodeTypePtr NodePtr) const {

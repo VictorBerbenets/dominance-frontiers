@@ -1,19 +1,24 @@
 #pragma once
 
+#include <algorithm>
 #include <concepts>
 #include <cstdlib>
 #include <filesystem>
 #include <iterator>
+#include <map>
 #include <memory>
+#include <ranges>
+#include <set>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <ranges>
 
 #include "utils.hpp"
 
 namespace graphs {
+
+namespace rgs = std::ranges;
 
 template <typename T>
   requires std::is_default_constructible_v<T>
@@ -44,7 +49,7 @@ public:
   }
 
   void removeSuccessor(NodePtr Ptr) {
-    if (auto RmIter = std::ranges::find(Successors, Ptr); RmIter != Successors.end()) {
+    if (auto RmIter = rgs::find(Successors, Ptr); RmIter != Successors.end()) {
       (*RmIter)->removePredecessor(this);
       Successors.erase(RmIter);
     }
@@ -54,20 +59,12 @@ public:
 
   DirGraphPtr getParent() const noexcept { return Parent; }
 
-  auto getSuccessors() const {
-    return std::ranges::subrange {Successors};
-  }
-  auto getPredecessors() const {
-    return std::ranges::subrange {Predecessors};
-  }
+  auto getSuccessors() const { return rgs::subrange{Successors}; }
+  auto getPredecessors() const { return rgs::subrange{Predecessors}; }
 
-  auto getSuccessors() {
-    return std::ranges::subrange {Successors};
-  }
+  auto getSuccessors() { return rgs::subrange{Successors}; }
 
-  auto getPredecessors() {
-    return std::ranges::subrange {Predecessors};
-  }
+  auto getPredecessors() { return rgs::subrange{Predecessors}; }
 
   NodePtr getPredecessor() {
     if (Predecessors.size() == 1) {
@@ -109,20 +106,21 @@ concept InputEdgeIter = std::input_iterator<T> && requires(T It) {
 template <typename T>
   requires std::is_default_constructible_v<T>
 class DirectedGraph {
+protected:
+  using NodeType = DirGraphNode<T>;
+  using NodeTypePtr = NodeType *;
+  using StoredNodePtr = std::unique_ptr<NodeType>;
+
 public:
   using value_type = T;
+  using DomTable = std::map<NodeTypePtr, std::set<NodeTypePtr>>;
+  using DGT = DirectedGraph<value_type>;
 
   static constexpr std::string_view DefGraphName = "GFG";
   static constexpr std::string_view DefNodeColor = "lightblue";
   static constexpr std::string_view DefNodeShape = "square";
   static constexpr std::string_view DefEdgeColor = "red";
   static constexpr std::string_view DefEdgeShape = "vee";
-
-protected:
-  using NodeType = DirGraphNode<value_type>;
-  using NodeTypePtr = NodeType *;
-  using StoredNodePtr = std::unique_ptr<NodeType>;
-
 public:
   template <InputEdgeIter InputIt>
   DirectedGraph(InputIt BeginIt, InputIt EndIt) {
@@ -155,6 +153,50 @@ public:
 
   // access random graph node ptr
   NodeTypePtr getNodePtr() const noexcept { return Nodes.front().get(); }
+
+  /*
+   * Dom(n) = n \/ ( /\ Dom(m)), where m is a set of predecessors of the n
+   */
+  DomTable determineDominators() const {
+    if (Nodes.empty())
+      return {};
+
+    DomTable DomTbl;
+    std::set<NodeTypePtr> Set;
+    rgs::transform(Nodes, std::inserter(Set, Set.end()),
+                   [](auto &UniquePtr) { return UniquePtr.get(); });
+    rgs::transform(Nodes, std::inserter(DomTbl, DomTbl.end()),
+                   [&Set](auto &UniquePtr) {
+                     return std::make_pair(UniquePtr.get(), Set);
+                   });
+
+    auto FrontPtr = Nodes.front().get();
+    DomTbl[FrontPtr].clear();
+    DomTbl[FrontPtr].insert(FrontPtr);
+
+    bool Changed = true;
+    while (Changed) {
+      Changed = false;
+      for (auto &UniquePtr : Nodes) {
+        auto NodePtr = UniquePtr.get();
+        auto TmpSet = DomTbl[NodePtr];
+        for (auto Pred : NodePtr->getPredecessors()) {
+          auto &CompSet = DomTbl[Pred];
+          std::set<NodeTypePtr> SaveComp;
+          rgs::set_intersection(CompSet, TmpSet,
+                                std::inserter(SaveComp, SaveComp.end()));
+          TmpSet = std::move(SaveComp);
+        }
+        TmpSet.insert(NodePtr);
+        Changed |= DomTbl[NodePtr] != TmpSet;
+        if (DomTbl[NodePtr] != TmpSet) {
+          DomTbl[NodePtr] = std::move(TmpSet);
+        }
+      }
+    }
+
+    return DomTbl;
+  }
 
 protected:
   void dumpInDotFormatBaseImpl(std::ofstream &DotDump,

@@ -6,7 +6,6 @@
 #include <string_view>
 #include <vector>
 
-#include "directed_graph.hpp"
 #include "dominance_tree_graph.hpp"
 
 namespace graphs {
@@ -17,14 +16,16 @@ concept ForwEdgeIter = InputEdgeIter<T> && std::forward_iterator<T>;
 namespace rgs = std::ranges;
 
 template <typename T> class DomJoinGraph final : private DomTreeGraph<T> {
+protected:
   using DTG = DomTreeGraph<T>;
   using DTG::Nodes;
 
 public:
+  using DJGT = DomJoinGraph<T>;
+
   template <ForwEdgeIter FIter>
   DomJoinGraph(FIter Begin, FIter End) : DTG(Begin, End) {
-    auto TreeEdges = DTG::getEdges();
-    std::set_difference(Begin, End, TreeEdges.cbegin(), TreeEdges.cend(),
+    rgs::set_difference(rgs::subrange(Begin, End), DTG::getEdges(),
                         std::back_inserter(JoinEdges));
   }
 
@@ -41,10 +42,19 @@ public:
     DotDump << "}\n";
   }
 
-private:
+protected:
   std::vector<EdgeType> JoinEdges;
 };
 
-template <typename T> class DomFrontGraph final : public DirectedGraph<T> {};
+template <typename T> class DomFrontGraph final : private DomJoinGraph<T> {
+  using DJGT = DomJoinGraph<T>;
+  using typename DJGT::DTG::NodeTypePtr;
+
+public:
+  template <ForwEdgeIter FIter>
+  DomFrontGraph(FIter Begin, FIter End) : DJGT(Begin, End) {
+    std::set<NodeTypePtr> ImmediateDomSet;
+  }
+};
 
 } // namespace graphs
