@@ -22,7 +22,7 @@ cmake --build .
 ```bash
 ./dom-frontiers [command] [options] ...
 ```
-The program will be waiting for command using `-g=` flag:
+### Available commands:
 ```bash
 --GFG generation:
 -g=cfg-txt - generate txt graph format (Vertex1 --> Vertex2)
@@ -42,7 +42,7 @@ The program will be waiting for command using `-g=` flag:
 -g=dom-frontier-png
 -g=dom-frontier     - generate all formats above
 ```
-## Available options:
+### Available options:
 ```bash
 --path=<>       - path to create files.  
 --graph-name=<> - set graph name.  
