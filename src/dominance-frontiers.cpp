@@ -249,9 +249,10 @@ template <DotGraphTipe GraphType>
 void generatePngFormatGraph(CommandContext &CC) {
   auto DotFilePath = generateDotFormatGraph<GraphType>(CC);
   dumpInPngFormat(DotFilePath);
-  if (CC.Com != coms::Cfg && CC.Com != coms::DomTree && CC.Com != coms::JoinGraph,
-      CC.Com != coms::DomFrontier)
+  if (CC.Com != coms::Cfg && CC.Com != coms::DomTree &&
+      CC.Com != coms::JoinGraph && CC.Com != coms::DomFrontier)
     fs::remove(DotFilePath);
+
   std::system(
       formatPrint("display {}", DotFilePath.replace_extension(".png").string())
           .c_str());
