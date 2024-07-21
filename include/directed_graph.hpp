@@ -201,27 +201,6 @@ public:
   }
 
 protected:
-  std::map<NodeTypePtr, std::vector<NodeTypePtr>> getDominatorsTree() const {
-    std::map<NodeTypePtr, std::vector<NodeTypePtr>> DomTree;
-
-    for (auto DomTbl = DGT::determineDominators();
-         auto &[NodePtr, DomSet] : DomTbl) {
-      DomSet.erase(NodePtr);
-      if (DomSet.empty()) {
-        continue;
-      } else if (DomSet.size() == 1) {
-        auto *Top = *DomSet.begin();
-        DomTree[Top].push_back(NodePtr);
-      } else {
-        auto *Closest = getClosest(DomSet, NodePtr);
-        assert(Closest);
-        DomTree[Closest].push_back(NodePtr);
-      }
-    }
-
-    return DomTree;
-  }
-
   void dumpInDotFormatBaseImpl(std::ofstream &DotDump,
                                std::string_view NodeShape,
                                std::string_view NodeColor,
@@ -252,24 +231,6 @@ protected:
   void clearGraphThreads() {
     rgs::for_each(Nodes,
                   [](auto &UniquePtr) { UniquePtr.get()->clearThreads(); });
-  }
-
-private:
-  NodeTypePtr getClosest(const std::set<NodeTypePtr> &DomSet,
-                         NodeTypePtr NodePtr) const {
-    std::queue<NodeTypePtr> BreadthLineNodes;
-    BreadthLineNodes.push(NodePtr);
-    while (!BreadthLineNodes.empty()) {
-      auto *CurrNodePtr = BreadthLineNodes.front();
-      BreadthLineNodes.pop();
-      for (auto *Pred : CurrNodePtr->getPredecessors()) {
-        if (DomSet.contains(Pred))
-          return Pred;
-        BreadthLineNodes.push(Pred);
-      }
-    }
-
-    return nullptr;
   }
 
 protected:
