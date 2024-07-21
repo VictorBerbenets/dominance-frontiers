@@ -13,20 +13,33 @@ namespace graphs {
 template <typename T>
 concept ForwEdgeIter = InputEdgeIter<T> && std::forward_iterator<T>;
 
-namespace rgs = std::ranges;
-
-template <typename T> class DomJoinGraph final : private DomTreeGraph<T> {
+template <typename T> class DomJoinGraph : private DomTreeGraph<T> {
 protected:
   using DTG = DomTreeGraph<T>;
   using DTG::Nodes;
+  using typename DTG::NodeTypePtr;
+  using EdgePtrType = std::pair<NodeTypePtr, NodeTypePtr>;
 
 public:
   using DJGT = DomJoinGraph<T>;
 
   template <ForwEdgeIter FIter>
   DomJoinGraph(FIter Begin, FIter End) : DTG(Begin, End) {
-    rgs::set_difference(rgs::subrange(Begin, End), DTG::getEdges(),
-                        std::back_inserter(JoinEdges));
+    std::unordered_map<std::string, NodeTypePtr> NodeMap;
+    std::transform(Nodes.cbegin(), Nodes.cend(),
+                   std::inserter(NodeMap, NodeMap.end()),
+                   [](const auto &UnPtr) {
+                     return std::make_pair(UnPtr.get()->getName(), UnPtr.get());
+                   });
+    auto Edges = getEdges();
+    std::vector<EdgeType> JoinStringEdges;
+    std::set_difference(Begin, End, Edges.begin(), Edges.end(),
+                        std::back_inserter(JoinStringEdges));
+    std::transform(JoinStringEdges.begin(), JoinStringEdges.end(),
+                   std::back_inserter(JoinEdges), [&NodeMap](const auto &Edge) {
+                     auto &[V1, V2] = Edge;
+                     return std::make_pair(NodeMap[V1], NodeMap[V2]);
+                   });
   }
 
   void dumpInDotFormat(std::ofstream &DotDump, std::string_view GraphName,
@@ -35,26 +48,50 @@ public:
                        std::string_view EdgeColor) const override {
     DTG::dumpInDotFormatBaseImpl(DotDump, GraphName, NodeShape, NodeColor,
                                  EdgeShape, EdgeColor);
-    for (const auto &[V1, V2] : JoinEdges) {
-      DotDump << utils::formatPrint("{} -> {} [style = dotted];\n", V1, V2);
-    }
+    std::transform(JoinEdges.cbegin(), JoinEdges.cend(),
+                   std::ostream_iterator<std::string>(DotDump),
+                   [](const auto &Edge) {
+                     return utils::formatPrint("{} -> {} [style = dotted];\n",
+                                               Edge.first->getName(),
+                                               Edge.second->getName());
+                   });
 
     DotDump << "}\n";
   }
 
+private:
+  std::vector<EdgeType> getEdges() const {
+    if (Nodes.empty())
+      return {};
+
+    std::vector<EdgeType> Edges;
+    for (const auto &UnNodePtr : Nodes) {
+      for (auto ParentPtr = UnNodePtr.get();
+           const auto *NodePtr : ParentPtr->getSuccessors()) {
+        Edges.emplace_back(ParentPtr->getName(), NodePtr->getName());
+      }
+    }
+    return Edges;
+  }
+
 protected:
-  std::vector<EdgeType> JoinEdges;
+  std::vector<EdgePtrType> JoinEdges;
 };
 
-template <typename T> class DomFrontGraph final : private DomJoinGraph<T> {
+template <typename T> class DomFrontierGraph final : private DomJoinGraph<T> {
   using DJGT = DomJoinGraph<T>;
   using typename DJGT::DTG::NodeTypePtr;
 
 public:
   template <ForwEdgeIter FIter>
-  DomFrontGraph(FIter Begin, FIter End) : DJGT(Begin, End) {
+  DomFrontierGraph(FIter Begin, FIter End) : DJGT(Begin, End) {
     std::set<NodeTypePtr> ImmediateDomSet;
   }
+
+  void dumpInDotFormat(std::ofstream &DotDump, std::string_view GraphName,
+                       std::string_view NodeShape, std::string_view NodeColor,
+                       std::string_view EdgeShape,
+                       std::string_view EdgeColor) const override {}
 };
 
 } // namespace graphs
