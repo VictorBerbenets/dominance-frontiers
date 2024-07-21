@@ -1,12 +1,14 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <concepts>
 #include <cstdlib>
 #include <filesystem>
 #include <iterator>
 #include <map>
 #include <memory>
+#include <queue>
 #include <ranges>
 #include <set>
 #include <type_traits>
@@ -116,7 +118,7 @@ public:
   using DomTable = std::map<NodeTypePtr, std::set<NodeTypePtr>>;
   using DGT = DirectedGraph<value_type>;
 
-  static constexpr std::string_view DefGraphName = "GFG";
+  static constexpr std::string_view DefGraphName = "CFG";
   static constexpr std::string_view DefNodeColor = "lightblue";
   static constexpr std::string_view DefNodeShape = "square";
   static constexpr std::string_view DefEdgeColor = "red";
@@ -199,14 +201,37 @@ public:
   }
 
 protected:
+  std::map<NodeTypePtr, std::vector<NodeTypePtr>> getDominatorsTree() const {
+    std::map<NodeTypePtr, std::vector<NodeTypePtr>> DomTree;
+
+    for (auto DomTbl = DGT::determineDominators();
+         auto &[NodePtr, DomSet] : DomTbl) {
+      DomSet.erase(NodePtr);
+      if (DomSet.empty()) {
+        continue;
+      } else if (DomSet.size() == 1) {
+        auto *Top = *DomSet.begin();
+        DomTree[Top].push_back(NodePtr);
+      } else {
+        auto *Closest = getClosest(DomSet, NodePtr);
+        assert(Closest);
+        DomTree[Closest].push_back(NodePtr);
+      }
+    }
+
+    return DomTree;
+  }
+
   void dumpInDotFormatBaseImpl(std::ofstream &DotDump,
-                               std::string_view GraphName,
                                std::string_view NodeShape,
                                std::string_view NodeColor,
                                std::string_view EdgeShape,
-                               std::string_view EdgeColor) const {
+                               std::string_view EdgeColor,
+                               std::string_view GraphName) const {
+
     DotDump << utils::formatPrint(
         "digraph {} {}\n"
+        "\tlabel=\"{}\"\n"
         "\tdpi = 100;\n"
         "\tfontname = \"Comic Sans MS\";\n"
         "\tfontsize = 20;\n"
@@ -214,7 +239,7 @@ protected:
         "node [shape = {}, style = filled, fillcolor = \"{}\"];\n"
         "edge [color = {}, arrowhead = {}, arrowsize = 1,"
         "penwidth = 1.2];\n",
-        GraphName, '{', NodeShape, NodeColor, EdgeColor, EdgeShape);
+        GraphName, '{', GraphName, NodeShape, NodeColor, EdgeColor, EdgeShape);
 
     for (const auto &Ptr : Nodes) {
       auto Name = Ptr.get()->getName();
@@ -222,6 +247,29 @@ protected:
         DotDump << utils::formatPrint("{} -> {};\n", Name, Vertex->getName());
       }
     }
+  }
+
+  void clearGraphThreads() {
+    rgs::for_each(Nodes,
+                  [](auto &UniquePtr) { UniquePtr.get()->clearThreads(); });
+  }
+
+private:
+  NodeTypePtr getClosest(const std::set<NodeTypePtr> &DomSet,
+                         NodeTypePtr NodePtr) const {
+    std::queue<NodeTypePtr> BreadthLineNodes;
+    BreadthLineNodes.push(NodePtr);
+    while (!BreadthLineNodes.empty()) {
+      auto *CurrNodePtr = BreadthLineNodes.front();
+      BreadthLineNodes.pop();
+      for (auto *Pred : CurrNodePtr->getPredecessors()) {
+        if (DomSet.contains(Pred))
+          return Pred;
+        BreadthLineNodes.push(Pred);
+      }
+    }
+
+    return nullptr;
   }
 
 protected:
