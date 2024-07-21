@@ -6,10 +6,10 @@ This program can help you to generate such graphes:
 3) Dominance join graph
 4) Dominance frontier graph
 ## Requirements
-**cmake** version must be `3.15` or higher
-**gcc** version must be `13.1` or higher
-**graphviz** tool should be installed
-**display** command should be installed
+**cmake** version must be `3.15` or higher  
+**gcc** version must be `13.1` or higher  
+**graphviz** tool should be installed  
+**display** command should be installed  
 ## How to build
 ```bash
 git clone git@github.com:VictorBerbenets/dominance-frontiers.git
@@ -20,7 +20,7 @@ cmake --build .
 ```
 ## To Run the program do
 ```bash
-./dom-frontiers
+./dom-frontiers [command] [options] ...
 ```
 The program will be waiting for command using `-g=` flag:
 ```bash
