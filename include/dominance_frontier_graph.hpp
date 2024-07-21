@@ -125,9 +125,8 @@ public:
     DGT::dumpInDotFormatBaseImpl(DotDump, GraphName, NodeShape, NodeColor,
                                  EdgeShape, EdgeColor);
     for (auto &UnPtr : Nodes)
-      if (auto NodePtr = UnPtr.get(); NodePtr->getSuccessorsCount() == 0)
-        DotDump << utils::formatPrint("{} -> {};\n", NodePtr->getName(),
-                                      NodePtr->getName());
+      if (auto *NodePtr = UnPtr.get(); NodePtr->getSuccessorsCount() == 0)
+        DotDump << utils::formatPrint("{};\n", NodePtr->getName());
 
     DotDump << "}\n";
   }
