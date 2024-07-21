@@ -18,8 +18,6 @@ protected:
   using typename DGT::NodeTypePtr;
   using EdgePtrType = std::pair<NodeTypePtr, NodeTypePtr>;
 
-  static constexpr std::string_view DefGraphName = "Dominance Tree Graph";
-
 public:
   using DTT = DomTreeGraph<T>;
 

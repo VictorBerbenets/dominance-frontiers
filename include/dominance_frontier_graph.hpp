@@ -26,8 +26,6 @@ protected:
   using typename DTG::NodeTypePtr;
   using EdgePtrType = std::pair<NodeTypePtr, NodeTypePtr>;
 
-  static constexpr std::string_view DefGraphName = "Dominance Join Graph";
-
 public:
   using DJGT = DomJoinGraph<T>;
 
@@ -113,7 +111,7 @@ public:
           DomFront[TmpPtr].insert(ParentPtr);
 
     DGT::clearGraphThreads();
-
+    // building dominance frontier graph
     for (auto &[Parent, Children] : DomFront) {
       for (auto *Child : Children)
         Parent->addSuccessor(Child);
