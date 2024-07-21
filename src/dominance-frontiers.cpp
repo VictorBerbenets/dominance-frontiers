@@ -238,9 +238,9 @@ fs::path generateDotFormatGraph(CommandContext &CC) {
   if (CC.Com != coms::Cfg && CC.OM[opts::Arg].empty())
     fs::remove(FilePath);
   std::ofstream DotFile{FilePath.replace_extension(".dot")};
-  G.dumpInDotFormat(DotFile, CC.OM[opts::GraphName], CC.OM[opts::NodeShape],
-                    CC.OM[opts::NodeColor], CC.OM[opts::EdgeShape],
-                    CC.OM[opts::EdgeColor]);
+  G.dumpInDotFormat(DotFile, CC.OM[opts::NodeShape], CC.OM[opts::NodeColor],
+                    CC.OM[opts::EdgeShape], CC.OM[opts::EdgeColor],
+                    CC.OM[opts::GraphName]);
   DotFile.close();
   return FilePath;
 }
