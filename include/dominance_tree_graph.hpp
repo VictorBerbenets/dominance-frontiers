@@ -17,6 +17,7 @@ protected:
   using DGT = DirectedGraph<T>;
   using DGT::Nodes;
   using typename DGT::NodeTypePtr;
+  using EdgePtrType = std::pair<NodeTypePtr, NodeTypePtr>;
 
 public:
   using DTT = DomTreeGraph<T>;
@@ -50,22 +51,7 @@ public:
     }
   }
 
-  std::vector<EdgeType> getEdges() const {
-    if (Nodes.empty())
-      return {};
-
-    std::vector<EdgeType> Edges;
-    for (const auto &UnNodePtr : Nodes) {
-      for (auto ParentPtr = UnNodePtr.get(); const auto *NodePtr :
-            ParentPtr->getSuccessors()) {
-        Edges.emplace_back(ParentPtr->getName(), NodePtr->getName());
-      }
-    }
-    return Edges;
-  }
-
 private:
-  // need to make faster
   NodeTypePtr getClosest(const std::set<NodeTypePtr> &DomSet,
                          NodeTypePtr NodePtr) const {
     std::queue<NodeTypePtr> BreadthLineNodes;

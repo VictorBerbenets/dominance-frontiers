@@ -27,6 +27,7 @@ using value_type = int;
 using DGT = DirectedGraph<value_type>;
 using DTT = DomTreeGraph<value_type>;
 using DJGT = DomJoinGraph<value_type>;
+using DFT = DomFrontierGraph<value_type>;
 using DGBT = DirGraphBuilder;
 using OptIter = typename std::vector<std::string>::iterator;
 using OptMap = std::unordered_map<std::string_view, std::string>;
@@ -208,11 +209,12 @@ void printHelp(std::ostream &Os = std::cout) {
 }
 
 template <typename GraphType>
-concept DotGraphTipe =
-    std::same_as<GraphType, DJGT> || (std::derived_from<GraphType, DGT> &&
-                                      requires(GraphType Gr, std::ofstream Os) {
-                                        { Gr.dumpInDotFormat(Os) };
-                                      });
+concept DotGraphTipe = std::same_as<GraphType, DJGT> ||
+    std::same_as<GraphType, DFT> ||
+    (std::derived_from<GraphType, DGT> &&requires(GraphType Gr,
+                                                  std::ofstream Os) {
+      {Gr.dumpInDotFormat(Os)};
+    });
 
 fs::path generateTxtFormatGraph(OptMap &OM) {
   fs::path FilePath;
@@ -356,8 +358,16 @@ int main(int args, char **argv) {
   case ComCodes::JoinGraphPng:
     generatePngFormatGraph<DJGT>(CC);
     break;
+  case ComCodes::DomFrontier:
+    generateFullExtensionGraph<DFT>(CC);
+    break;
+  case ComCodes::DomFrontierDot:
+    generateDotFormatGraph<DFT>(CC);
+    break;
+  case ComCodes::DomFrontierPng:
+    generatePngFormatGraph<DFT>(CC);
+    break;
   default:
-    throw std::runtime_error{std::string(CC.Com).append(
-        " is not available command. Try -help, -h.")};
+    break;
   }
 }
