@@ -209,7 +209,7 @@ void printHelp(std::ostream &Os = std::cout) {
 }
 
 template <typename GraphType>
-concept DotGraphTipe = std::same_as<GraphType, DJGT> ||
+concept DotGraphType = std::same_as<GraphType, DJGT> ||
     std::same_as<GraphType, DFT> ||
     (std::derived_from<GraphType, DGT> &&requires(GraphType Gr,
                                                   std::ofstream Os) {
@@ -229,7 +229,7 @@ fs::path generateTxtFormatGraph(OptMap &OM) {
   return FilePath;
 }
 
-template <DotGraphTipe GraphType>
+template <DotGraphType GraphType>
 fs::path generateDotFormatGraph(CommandContext &CC) {
   auto FilePath = generateTxtFormatGraph(CC.OM);
   std::ifstream TxtFile{FilePath};
@@ -245,7 +245,7 @@ fs::path generateDotFormatGraph(CommandContext &CC) {
   return FilePath;
 }
 
-template <DotGraphTipe GraphType>
+template <DotGraphType GraphType>
 void generatePngFormatGraph(CommandContext &CC) {
   auto DotFilePath = generateDotFormatGraph<GraphType>(CC);
   dumpInPngFormat(DotFilePath);
@@ -258,7 +258,7 @@ void generatePngFormatGraph(CommandContext &CC) {
           .c_str());
 }
 
-template <DotGraphTipe GraphType>
+template <DotGraphType GraphType>
 void generateFullExtensionGraph(CommandContext &CC) {
   generatePngFormatGraph<GraphType>(CC);
 }
