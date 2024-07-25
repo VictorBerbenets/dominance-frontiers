@@ -1,7 +1,7 @@
 # Dominance frontiers
 ### About
 This program can help you to generate such graphes:
-1) CFG graph
+1) CFG  
 2) Dominance tree graph
 3) Dominance join graph
 4) Dominance frontier graph
